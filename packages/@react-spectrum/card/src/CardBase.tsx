@@ -1,3 +1,4 @@
+// @ts-nocheck
 /*
  * Copyright 2021 Adobe. All rights reserved.
  * This file is licensed to you under the Apache License, Version 2.0 (the "License");
@@ -15,8 +16,7 @@ import {Checkbox} from '@react-spectrum/checkbox';
 import {classNames, SlotProvider, useDOMRef, useHasChild, useStyleProps} from '@react-spectrum/utils';
 import {DOMRef, Node} from '@react-types/shared';
 import {filterDOMProps, mergeProps, useLayoutEffect, useResizeObserver, useSlotId} from '@react-aria/utils';
-import {FocusRing} from '@react-aria/focus';
-import {getFocusableTreeWalker} from  '@react-aria/focus';
+import {FocusRing, getFocusableTreeWalker} from '@react-aria/focus';
 import React, {HTMLAttributes, useCallback, useMemo, useRef, useState} from 'react';
 import styles from '@adobe/spectrum-css-temp/components/card/vars.css';
 import {useCardViewContext} from './CardViewContext';
@@ -28,7 +28,10 @@ interface CardBaseProps<T> extends SpectrumCardProps {
   item?: Node<T>
 }
 
-function CardBase<T extends object>(props: CardBaseProps<T>, ref: DOMRef<HTMLDivElement>) {
+/**
+ * TODO: Add description of component here.
+ */
+export const CardBase = React.forwardRef(function CardBase<T extends object>(props: CardBaseProps<T>, ref: DOMRef<HTMLDivElement>) {
   props = useProviderProps(props);
   let context = useCardViewContext() || {}; // we can call again here, won't change from Card.tsx
   let {state} = context;
@@ -50,7 +53,7 @@ function CardBase<T extends object>(props: CardBaseProps<T>, ref: DOMRef<HTMLDiv
   let {styleProps} = useStyleProps(props);
   let {cardProps, titleProps, contentProps} = useCard(props);
   let domRef = useDOMRef(ref);
-  let gridRef = useRef<HTMLDivElement>();
+  let gridRef = useRef<HTMLDivElement>(undefined);
   let checkboxRef = useRef(null);
 
   // cards are only interactive if there is a selection manager and it allows selection
@@ -151,7 +154,7 @@ function CardBase<T extends object>(props: CardBaseProps<T>, ref: DOMRef<HTMLDiv
       </article>
     </FocusRing>
   );
-}
+});
 
 interface AriaCardOptions extends AriaCardProps {
 }
@@ -183,9 +186,3 @@ function useCard(props: AriaCardOptions): CardAria {
     contentProps
   };
 }
-
-/**
- * TODO: Add description of component here.
- */
-const _CardBase = React.forwardRef(CardBase);
-export {_CardBase as CardBase};

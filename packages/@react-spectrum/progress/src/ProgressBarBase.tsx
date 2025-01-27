@@ -13,9 +13,8 @@
 import {clamp} from '@react-aria/utils';
 import {classNames, useDOMRef, useStyleProps} from '@react-spectrum/utils';
 import {DOMRef} from '@react-types/shared';
-import {ProgressBarProps} from '@react-types/progress';
+import {ProgressBarProps, SpectrumProgressBarBaseProps} from '@react-types/progress';
 import React, {CSSProperties, HTMLAttributes} from 'react';
-import {SpectrumProgressBarBaseProps} from '@react-types/progress';
 import styles from '@adobe/spectrum-css-temp/components/barloader/vars.css';
 
 interface ProgressBarBaseProps extends SpectrumProgressBarBaseProps, ProgressBarProps {
@@ -25,7 +24,7 @@ interface ProgressBarBaseProps extends SpectrumProgressBarBaseProps, ProgressBar
 }
 
 // Base ProgressBar component shared with Meter.
-function ProgressBarBase(props: ProgressBarBaseProps, ref: DOMRef<HTMLDivElement>) {
+export const ProgressBarBase = React.forwardRef(function ProgressBarBase(props: ProgressBarBaseProps, ref: DOMRef<HTMLDivElement>) {
   let {
     value = 0,
     minValue = 0,
@@ -85,7 +84,7 @@ function ProgressBarBase(props: ProgressBarBaseProps, ref: DOMRef<HTMLDivElement
             {label}
         </span>
       }
-      {showValueLabel &&
+      {showValueLabel && barProps && 
         <div className={classNames(styles, 'spectrum-BarLoader-percentage')}>
           {barProps['aria-valuetext']}
         </div>
@@ -97,7 +96,4 @@ function ProgressBarBase(props: ProgressBarBaseProps, ref: DOMRef<HTMLDivElement
       </div>
     </div>
   );
-}
-
-let _ProgressBarBase = React.forwardRef(ProgressBarBase);
-export {_ProgressBarBase as ProgressBarBase};
+});

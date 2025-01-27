@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-import {act, fireEvent, render, triggerPress, within} from '@react-spectrum/test-utils';
+import {act, fireEvent, pointerMap, render, within} from '@react-spectrum/test-utils-internal';
 import {ActionMenu, Item} from '../';
 import {Provider} from '@react-spectrum/provider';
 import React from 'react';
@@ -23,8 +23,10 @@ let CLOSE_TIME = 350;
 describe('ActionMenu', function () {
   let onActionSpy = jest.fn();
   let onOpenChange = jest.fn();
+  let user;
 
   beforeAll(function () {
+    user = userEvent.setup({delay: null, pointerMap});
     jest.useFakeTimers();
   });
 
@@ -36,7 +38,7 @@ describe('ActionMenu', function () {
     });
   });
 
-  it('basic test', function () {
+  it('basic test', async function () {
     let tree = render(<Provider theme={theme}>
       <ActionMenu onAction={onActionSpy}>
         <Item>Foo</Item>
@@ -47,7 +49,7 @@ describe('ActionMenu', function () {
 
     let button = tree.getByRole('button');
     expect(button).toHaveAttribute('aria-label', 'More actions');
-    triggerPress(button);
+    await user.click(button);
 
     let menu = tree.getByRole('menu');
     expect(menu).toBeTruthy();
@@ -61,7 +63,7 @@ describe('ActionMenu', function () {
     expect(menuItem2).toBeTruthy();
     expect(menuItem3).toBeTruthy();
 
-    triggerPress(menuItem1);
+    await user.click(menuItem1);
     expect(onActionSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -78,7 +80,7 @@ describe('ActionMenu', function () {
     expect(button).toHaveAttribute('aria-label', 'Custom Aria Label');
   });
 
-  it('is disabled', function () {
+  it('is disabled', async function () {
     let tree = render(<Provider theme={theme}>
       <ActionMenu isDisabled>
         <Item>Foo</Item>
@@ -89,7 +91,7 @@ describe('ActionMenu', function () {
 
     let button = tree.getByRole('button');
     expect(button).toHaveAttribute('aria-label', 'More actions');
-    triggerPress(button);
+    await user.click(button);
 
     let menu = tree.queryByRole('menu');
     expect(menu).toBeNull();
@@ -108,7 +110,7 @@ describe('ActionMenu', function () {
     expect(document.activeElement).toBe(button);
   });
 
-  it('supports a controlled open state ', function () {
+  it('supports a controlled open state ', async function () {
     let tree = render(
       <Provider theme={theme}>
         <ActionMenu onOpenChange={onOpenChange} isOpen>
@@ -126,7 +128,7 @@ describe('ActionMenu', function () {
     expect(menu).toBeTruthy();
 
     let triggerButton = tree.getByLabelText('More actions');
-    triggerPress(triggerButton);
+    await user.click(triggerButton);
     act(() => {jest.runAllTimers();});
 
     menu = tree.getByRole('menu');
@@ -135,7 +137,7 @@ describe('ActionMenu', function () {
     expect(triggerButton).toHaveAttribute('aria-expanded', 'true');
   });
 
-  it('supports an uncontrolled default open state ', function () {
+  it('supports an uncontrolled default open state ', async function () {
     let tree = render(
       <Provider theme={theme}>
         <ActionMenu onOpenChange={onOpenChange} defaultOpen>
@@ -153,7 +155,7 @@ describe('ActionMenu', function () {
     expect(menu).toBeTruthy();
 
     let triggerButton = tree.getByLabelText('More actions');
-    triggerPress(triggerButton);
+    await user.click(triggerButton);
     act(() => {jest.runAllTimers();});
 
     expect(menu).not.toBeInTheDocument();
@@ -198,7 +200,7 @@ describe('ActionMenu', function () {
       expect(menu).toHaveAttribute('aria-labelledby', button.id);
     });
 
-    it('using keyboard', function () {
+    it('using keyboard', async function () {
       let tree = render(
         <Provider theme={theme}>
           <TooltipTrigger delay={0}>
@@ -213,7 +215,7 @@ describe('ActionMenu', function () {
       );
 
       let button = tree.getByRole('button');
-      userEvent.tab();
+      await user.tab();
       expect(button).toBe(document.activeElement);
 
       let tooltip = tree.getByRole('tooltip');

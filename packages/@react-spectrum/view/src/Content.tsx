@@ -10,14 +10,16 @@
  * governing permissions and limitations under the License.
  */
 
-import {ClearSlots, useDOMRef, useSlotProps} from '@react-spectrum/utils';
+import {ClearSlots, useDOMRef, useSlotProps, useStyleProps} from '@react-spectrum/utils';
 import {ContentProps} from '@react-types/view';
 import {DOMRef} from '@react-types/shared';
 import {filterDOMProps} from '@react-aria/utils';
 import React, {forwardRef} from 'react';
-import {useStyleProps} from '@react-spectrum/utils';
 
-function Content(props: ContentProps, ref: DOMRef) {
+/**
+ * Content represents the primary content within a Spectrum container.
+ */
+export const Content = forwardRef(function Content(props: ContentProps, ref: DOMRef) {
   props = useSlotProps(props, 'content');
   let {
     children,
@@ -33,10 +35,4 @@ function Content(props: ContentProps, ref: DOMRef) {
       </ClearSlots>
     </section>
   );
-}
-
-/**
- * Content represents the primary content within a Spectrum container.
- */
-const _Content = forwardRef(Content);
-export {_Content as Content};
+});

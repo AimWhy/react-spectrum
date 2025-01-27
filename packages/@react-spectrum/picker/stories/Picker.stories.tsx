@@ -15,19 +15,19 @@ import {ActionButton} from '@react-spectrum/button';
 import AlignCenter from '@spectrum-icons/workflow/AlignCenter';
 import AlignLeft from '@spectrum-icons/workflow/AlignLeft';
 import AlignRight from '@spectrum-icons/workflow/AlignRight';
+import {Avatar} from '@react-spectrum/avatar';
 import {ComponentMeta, ComponentStoryObj} from '@storybook/react';
-import {Content} from '@react-spectrum/view';
+import {Content, View} from '@react-spectrum/view';
 import {ContextualHelp} from '@react-spectrum/contextualhelp';
 import Copy from '@spectrum-icons/workflow/Copy';
 import Cut from '@spectrum-icons/workflow/Cut';
 import {Flex} from '@react-spectrum/layout';
-import {Heading} from '@react-spectrum/text';
+import {Heading, Text} from '@react-spectrum/text';
 import {Item, Picker, Section, SpectrumPickerProps} from '../';
 import Paste from '@spectrum-icons/workflow/Paste';
 import React,  {useState} from 'react';
-import {Text} from '@react-spectrum/text';
 import {useAsyncList} from '@react-stately/data';
-import {View} from '@react-spectrum/view';
+import {userEvent, within} from '@storybook/testing-library';
 
 let flatOptions = [
   {id: 1, name: 'Aardvark'},
@@ -129,14 +129,19 @@ export default {
     isRequired: {
       control: 'boolean'
     },
-    validationState: {
-      control: {
-        type: 'radio',
-        options: [null, 'valid', 'invalid']
-      }
+    isInvalid: {
+      control: 'boolean'
     },
     isQuiet: {
       control: 'boolean'
+    },
+    direction: {
+      control: 'radio',
+      options: ['top', 'bottom']
+    },
+    align: {
+      control: 'radio',
+      options: ['start', 'end']
     },
     width: {
       control: {
@@ -168,6 +173,15 @@ export default {
 export type DefaultStory = ComponentStoryObj<typeof DefaultPicker>;
 export const Default: DefaultStory = {
   render: (args) => <DefaultPicker {...args} />
+};
+
+// Need to interact with picker for the aXe plugin to catch the 'aria-hidden-focus' false positive
+Default.play = async ({canvasElement}) => {
+  let canvas = within(canvasElement);
+  let button = await canvas.findByRole('button');
+  await userEvent.click(button);
+  let body = canvasElement.ownerDocument.body;
+  await within(body).findByRole('listbox');
 };
 
 export const Disabled: DefaultStory = {
@@ -215,6 +229,30 @@ export const ComplexItems: ComplexItemsStory = {
   name: 'complex items'
 };
 
+export const WithAvatars: PickerStory = {
+  args: {label: 'Select a user'},
+  render: (args) => (
+    <Picker {...args}>
+      <Item textValue="User 1">
+        <Avatar src="https://i.imgur.com/kJOwAdv.png" />
+        <Text>User 1</Text>
+      </Item>
+      <Item textValue="User 2">
+        <Avatar src="https://i.imgur.com/kJOwAdv.png" />
+        <Text>User 2</Text>
+      </Item>
+      <Item textValue="User 3">
+        <Avatar src="https://i.imgur.com/kJOwAdv.png" />
+        <Text>User 3</Text>
+      </Item>
+      <Item textValue="User 4">
+        <Avatar src="https://i.imgur.com/kJOwAdv.png" />
+        <Text>User 4</Text>
+      </Item>
+    </Picker>
+  )
+};
+
 export const LongItemText: PickerStory = {
   args: {
     children: (item: any) => <Item key={item.key}>{item.name}</Item>,
@@ -231,14 +269,35 @@ export const FalsyKey: PickerStory = {
   name: 'falsy item key'
 };
 
-export const NoLabel: PickerStory = {
+export type LabelledByStory = ComponentStoryObj<any>;
+export const LabelledBy: LabelledByStory = {
   args: {
-    children: (item: any) => <Item>{item.name}</Item>,
-    items: flatOptions,
-    'aria-label': 'Test',
+    'aria-label': null,
+    'aria-labelledby': true,
     label: null
   },
-  name: 'no visible label'
+  argTypes: {
+    'aria-label': {
+      control: 'text'
+    },
+    'aria-labelledby': {
+      control: 'boolean'
+    }
+  },
+  render: (args) => (
+    <>
+      <div id="test">Test label</div>
+      <Picker {...args} aria-labelledby={args['aria-labelledby'] ? 'test' : undefined} items={flatOptions}>
+        {(item: any) => <Item>{item.name}</Item>}
+      </Picker>
+    </>
+  ),
+  name: 'no visible label combination story',
+  parameters: {
+    description: {
+      data: 'Use controls to add/remove a visible label, aria-label, and toggle the aria-labelledby on/off'
+    }
+  }
 };
 
 export const ContextualHelpPicker: PickerStory = {
@@ -324,6 +383,70 @@ export const Scrolling: ScrollingStory = {
     </View>
   ),
   name: 'scrolling container'
+};
+
+export const Links: PickerStory = {
+  render: (args) => (
+    <Picker {...args}>
+      <Item key="foo">Foo</Item>
+      <Item key="bar">Bar</Item>
+      <Item href="https://google.com">Google</Item>
+    </Picker>
+  )
+};
+
+export const Quiet: PickerStory = {
+  render: () => (
+    <View>
+      <View>
+        <h4>Quiet picker with label</h4>
+        <Picker label="Choose frequency" isQuiet>
+          <Item key="rarely">Rarely</Item>
+          <Item key="sometimes">Sometimes</Item>
+          <Item key="always">Always</Item>
+        </Picker>
+      </View>
+      <hr />
+      <View>
+        <h4>Quiet picker without label</h4>
+        <Picker aria-label="Choose frequency" isQuiet>
+          <Item key="rarely">Rarely</Item>
+          <Item key="sometimes">Sometimes</Item>
+          <Item key="always">Always</Item>
+        </Picker>
+      </View>
+      <hr />
+      <View
+        width={200}>
+        <h4>Quiet picker with label and fixed width (200px)</h4>
+        <Picker
+          isQuiet
+          label="Choose frequency"
+          defaultSelectedKey="sometimes">
+          <Item key="rarely">Rarely</Item>
+          <Item key="sometimes">
+            This text is very long and will overflow the container
+          </Item>
+          <Item key="always">Always</Item>
+        </Picker>
+      </View>
+      <hr />
+      <View
+        width={600}>
+        <h4>Quiet picker with label and fixed width (600px)</h4>
+        <Picker
+          isQuiet
+          label="Choose frequency"
+          defaultSelectedKey="sometimes">
+          <Item key="rarely">Rarely</Item>
+          <Item key="sometimes">
+            This text is very long the picker should expand to fit
+          </Item>
+          <Item key="always">Always</Item>
+        </Picker>
+      </View>
+    </View>
+  )
 };
 
 function DefaultPicker(props: SpectrumPickerProps<object>) {

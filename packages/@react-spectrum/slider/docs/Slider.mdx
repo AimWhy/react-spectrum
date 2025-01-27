@@ -82,6 +82,17 @@ The slider value can be formatted by using the `formatOptions` prop.
   defaultValue={60} />
 ```
 
+### HTML forms
+
+Slider supports the `name` prop for integration with HTML forms.
+
+```tsx example
+<Slider
+  label="Opacity"
+  defaultValue={50}
+  name="opacity" />
+```
+
 ## Labeling
 Value labels are shown above the Slider by default, but they can also be moved to the side or hidden as needed.
 The label text should be in sentence case.
@@ -182,3 +193,14 @@ import {Content, ContextualHelp, Heading} from '@adobe/react-spectrum';
 ```tsx example
 <Slider label="Cookies to share" defaultValue={25} isDisabled />
 ```
+
+## Testing
+
+The Slider features a draggable handle that the user can interact with to change its value.
+Please see the following section in the testing docs for more information on how to simulate this action in your
+test suite.
+
+[Simulating move event](./testing.html#simulating-move-event)
+
+Please also refer to [React Spectrum's test suite](https://github.com/adobe/react-spectrum/blob/main/packages/%40react-spectrum/color/test/ColorArea.test.tsx) if you find that the above
+isn't sufficient when resolving issues in your own test cases.

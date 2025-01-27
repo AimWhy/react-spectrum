@@ -10,9 +10,9 @@
  * governing permissions and limitations under the License.
  */
 
-import {Checkbox, CheckboxGroup, CheckboxGroupContext, Label, Text} from '../';
+import {act, pointerMap, render} from '@react-spectrum/test-utils-internal';
+import {Checkbox, CheckboxGroup, CheckboxGroupContext, FieldError, Label, Text} from '../';
 import React from 'react';
-import {render} from '@react-spectrum/test-utils';
 import userEvent from '@testing-library/user-event';
 
 let TestCheckboxGroup = ({groupProps, checkboxProps}) => (
@@ -27,6 +27,11 @@ let TestCheckboxGroup = ({groupProps, checkboxProps}) => (
 let renderGroup = (groupProps, checkboxProps) => render(<TestCheckboxGroup {...{groupProps, checkboxProps}} />);
 
 describe('CheckboxGroup', () => {
+  let user;
+  beforeAll(() => {
+    user = userEvent.setup({delay: null, pointerMap});
+  });
+
   it('should render a checkbox group with default classes', () => {
     let {getByRole, getAllByRole} = renderGroup();
     let group = getByRole('group');
@@ -95,7 +100,7 @@ describe('CheckboxGroup', () => {
     expect(label).toHaveClass('disabled');
   });
 
-  it('should support selected state', () => {
+  it('should support selected state', async () => {
     let onChange = jest.fn();
     let {getAllByRole} = renderGroup({onChange}, {className: ({isSelected}) => isSelected ? 'selected' : ''});
     let checkboxes = getAllByRole('checkbox');
@@ -105,13 +110,13 @@ describe('CheckboxGroup', () => {
     expect(label).not.toHaveAttribute('data-selected');
     expect(label).not.toHaveClass('selected');
 
-    userEvent.click(checkboxes[0]);
+    await user.click(checkboxes[0]);
     expect(onChange).toHaveBeenLastCalledWith(['a']);
     expect(checkboxes[0]).toBeChecked();
     expect(label).toHaveAttribute('data-selected', 'true');
     expect(label).toHaveClass('selected');
 
-    userEvent.click(checkboxes[0]);
+    await user.click(checkboxes[0]);
     expect(onChange).toHaveBeenLastCalledWith([]);
     expect(checkboxes[0]).not.toBeChecked();
     expect(label).not.toHaveAttribute('data-selected');
@@ -132,16 +137,16 @@ describe('CheckboxGroup', () => {
   });
 
   it('should support validation state', () => {
-    let className = ({validationState}) => validationState;
-    let {getByRole, getAllByRole} = renderGroup({validationState: 'invalid', className}, {className});
+    let className = ({isInvalid}) => isInvalid ? 'invalid' : null;
+    let {getByRole, getAllByRole} = renderGroup({isInvalid: true, className}, {className});
     let group = getByRole('group');
     let checkbox = getAllByRole('checkbox')[0];
     let label = checkbox.closest('label');
 
-    expect(group).toHaveAttribute('data-validation-state', 'invalid');
+    expect(group).toHaveAttribute('data-invalid', 'true');
     expect(group).toHaveClass('invalid');
 
-    expect(label).toHaveAttribute('data-validation-state', 'invalid');
+    expect(label).toHaveAttribute('data-invalid', 'true');
     expect(label).toHaveClass('invalid');
   });
 
@@ -161,7 +166,7 @@ describe('CheckboxGroup', () => {
 
   it('supports help text', () => {
     let {getByRole, getAllByRole} = render(
-      <CheckboxGroup validationState="invalid">
+      <CheckboxGroup isInvalid>
         <Label>Test</Label>
         <Checkbox value="a">A</Checkbox>
         <Text slot="description">Description</Text>
@@ -192,5 +197,88 @@ describe('CheckboxGroup', () => {
     let group = getByRole('group');
     let label = document.getElementById(group.getAttribute('aria-labelledby'));
     expect(label).toHaveAttribute('data-required', 'true');
+  });
+
+  it('should support aria-describedby on a checkbox', () => {
+    let {getAllByRole} = renderGroup({}, {'aria-describedby': 'test'});
+    let checkboxes = getAllByRole('checkbox');
+    for (let checkbox of checkboxes) {
+      expect(checkbox).toHaveAttribute('aria-describedby', 'test');
+    }
+  });
+
+  it('should support validation errors', async () => {
+    let {getByRole, getAllByRole, getByTestId} = render(
+      <form data-testid="form">
+        <CheckboxGroup isRequired>
+          <Label>Test</Label>
+          <Checkbox value="a">A</Checkbox>
+          <FieldError />
+        </CheckboxGroup>
+      </form>
+    );
+
+    let group = getByRole('group');
+    let checkboxes = getAllByRole('checkbox');
+    expect(group).not.toHaveAttribute('aria-describedby');
+    expect(group).not.toHaveAttribute('data-invalid');
+    for (let checkbox of checkboxes) {
+      expect(checkbox.closest('.react-aria-Checkbox')).not.toHaveAttribute('data-invalid');
+    }
+
+    act(() => {getByTestId('form').checkValidity();});
+
+    expect(group).toHaveAttribute('aria-describedby');
+    expect(document.getElementById(group.getAttribute('aria-describedby'))).toHaveTextContent('Constraints not satisfied');
+    expect(group).toHaveAttribute('data-invalid');
+
+    for (let checkbox of checkboxes) {
+      expect(checkbox.closest('.react-aria-Checkbox')).toHaveAttribute('data-invalid');
+    }
+
+    await user.click(checkboxes[0]);
+    expect(group).not.toHaveAttribute('aria-describedby');
+    expect(group).not.toHaveAttribute('data-invalid');
+    for (let checkbox of checkboxes) {
+      expect(checkbox.closest('.react-aria-Checkbox')).not.toHaveAttribute('data-invalid');
+    }
+  });
+
+  it('should support focus events', async () => {
+    let onBlur = jest.fn();
+    let onFocus = jest.fn();
+    let onFocusChange = jest.fn();
+    let {getAllByRole, getByText} = render(
+      <>
+        <TestCheckboxGroup groupProps={{onBlur, onFocus, onFocusChange}} />
+        <button>Steal focus</button>
+      </>
+    );
+    let checkboxes = getAllByRole('checkbox');
+    let button = getByText('Steal focus');
+
+    // first gaining focus
+    await user.tab();
+    expect(document.activeElement).toBe(checkboxes[0]);
+    expect(onBlur).not.toHaveBeenCalled();
+    expect(onFocus).toHaveBeenCalledTimes(1);
+    expect(onFocusChange).toHaveBeenCalledTimes(1);  // triggered by onFocus
+    expect(onFocusChange).toHaveBeenLastCalledWith(true);
+
+    // inner focus changes shouldn't call the callbacks.
+    await user.tab();
+    expect(document.activeElement).toBe(checkboxes[1]);
+    expect(onBlur).not.toHaveBeenCalled();
+    expect(onFocus).toHaveBeenCalledTimes(1);
+    expect(onFocusChange).toHaveBeenCalledTimes(1);
+    expect(onFocusChange).toHaveBeenLastCalledWith(true);
+
+    // `onBlur` and the following `onFocusChange` only should be called when losing focus to an outer element.
+    await user.click(button);
+    expect(document.activeElement).toBe(button);
+    expect(onBlur).toHaveBeenCalled();
+    expect(onFocus).toHaveBeenCalledTimes(1);
+    expect(onFocusChange).toHaveBeenCalledTimes(2);  // triggered by onBlur
+    expect(onFocusChange).toHaveBeenLastCalledWith(false);
   });
 });

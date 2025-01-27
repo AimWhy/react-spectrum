@@ -36,14 +36,21 @@ import React, {ReactElement, useCallback, useRef, useState} from 'react';
 import {SpectrumPickerProps} from '@react-types/select';
 import styles from '@adobe/spectrum-css-temp/components/dropdown/vars.css';
 import {Text} from '@react-spectrum/text';
+import {useFormProps} from '@react-spectrum/form';
 import {useLocalizedStringFormatter} from '@react-aria/i18n';
 import {useProvider, useProviderProps} from '@react-spectrum/provider';
 import {useSelectState} from '@react-stately/select';
 
-function Picker<T extends object>(props: SpectrumPickerProps<T>, ref: DOMRef<HTMLDivElement>) {
+/**
+ * Pickers allow users to choose a single option from a collapsible list of options when space is limited.
+ */
+// forwardRef doesn't support generic parameters, so cast the result to the correct type
+// https://stackoverflow.com/questions/58469229/react-with-typescript-generics-while-using-react-forwardref
+export const Picker = React.forwardRef(function Picker<T extends object>(props: SpectrumPickerProps<T>, ref: DOMRef<HTMLDivElement>) {
   props = useSlotProps(props, 'picker');
   props = useProviderProps(props);
-  let stringFormatter = useLocalizedStringFormatter(intlMessages);
+  props = useFormProps(props);
+  let stringFormatter = useLocalizedStringFormatter(intlMessages, '@react-spectrum/picker');
   let {
     autoComplete,
     isDisabled,
@@ -51,7 +58,6 @@ function Picker<T extends object>(props: SpectrumPickerProps<T>, ref: DOMRef<HTM
     align = 'start',
     shouldFlip = true,
     placeholder = stringFormatter.format('placeholder'),
-    validationState,
     isQuiet,
     label,
     labelPosition = 'top' as LabelPosition,
@@ -63,10 +69,10 @@ function Picker<T extends object>(props: SpectrumPickerProps<T>, ref: DOMRef<HTM
   let state = useSelectState(props);
   let domRef = useDOMRef(ref);
 
-  let popoverRef = useRef<DOMRefValue<HTMLDivElement>>();
-  let triggerRef = useRef<FocusableRefValue<HTMLElement>>();
+  let popoverRef = useRef<DOMRefValue<HTMLDivElement>>(null);
+  let triggerRef = useRef<FocusableRefValue<HTMLElement>>(null);
   let unwrappedTriggerRef = useUnwrapDOMRef(triggerRef);
-  let listboxRef = useRef();
+  let listboxRef = useRef(null);
 
   let isLoadingInitial = props.isLoading && state.collection.size === 0;
   let isLoadingMore = props.isLoading && state.collection.size > 0;
@@ -75,11 +81,10 @@ function Picker<T extends object>(props: SpectrumPickerProps<T>, ref: DOMRef<HTM
   // We create the listbox layout in Picker and pass it to ListBoxBase below
   // so that the layout information can be cached even while the listbox is not mounted.
   // We also use the layout as the keyboard delegate for type to select.
-  let layout = useListBoxLayout(state);
-  let {labelProps, triggerProps, valueProps, menuProps, descriptionProps, errorMessageProps} = useSelect({
+  let layout = useListBoxLayout();
+  let {labelProps, triggerProps, valueProps, menuProps, descriptionProps, errorMessageProps, isInvalid, validationErrors, validationDetails} = useSelect({
     ...props,
-    'aria-describedby': (isLoadingInitial ? progressCircleId : undefined),
-    keyboardDelegate: layout
+    'aria-describedby': (isLoadingInitial ? progressCircleId : undefined)
   }, state, unwrappedTriggerRef);
 
   let isMobile = useIsMobileDevice();
@@ -99,12 +104,13 @@ function Picker<T extends object>(props: SpectrumPickerProps<T>, ref: DOMRef<HTM
       width={isMobile ? '100%' : undefined}
       // Set max height: inherit so Tray scrolling works
       UNSAFE_style={{maxHeight: 'inherit'}}
-      isLoading={isLoadingMore}
+      isLoading={props.isLoading}
+      showLoadingSpinner={isLoadingMore}
       onLoadMore={props.onLoadMore} />
   );
 
   // Measure the width of the button to inform the width of the menu (below).
-  let [buttonWidth, setButtonWidth] = useState(null);
+  let [buttonWidth, setButtonWidth] = useState<number | undefined>(undefined);
   let {scale} = useProvider();
 
   let onResize = useCallback(() => {
@@ -132,7 +138,7 @@ function Picker<T extends object>(props: SpectrumPickerProps<T>, ref: DOMRef<HTM
     // If quiet, use the default width, otherwise match the width of the button. This can be overridden by the menuWidth prop.
     // Always have a minimum width of the button width. When quiet, there is an extra offset to add.
     // Not using style props for this because they don't support `calc`.
-    let width = isQuiet ? null : buttonWidth;
+    let width = isQuiet ? undefined : buttonWidth;
     let style = {
       width: menuWidth ? dimensionValue(menuWidth) : width,
       minWidth: isQuiet ? `calc(${buttonWidth}px + calc(2 * var(--spectrum-dropdown-quiet-offset)))` : buttonWidth
@@ -166,7 +172,7 @@ function Picker<T extends object>(props: SpectrumPickerProps<T>, ref: DOMRef<HTM
           styles,
           'spectrum-Dropdown',
           {
-            'is-invalid': validationState === 'invalid' && !isDisabled,
+            'is-invalid': isInvalid && !isDisabled,
             'is-disabled': isDisabled,
             'spectrum-Dropdown--quiet': isQuiet
           }
@@ -185,12 +191,13 @@ function Picker<T extends object>(props: SpectrumPickerProps<T>, ref: DOMRef<HTM
           isActive={state.isOpen}
           isQuiet={isQuiet}
           isDisabled={isDisabled}
-          validationState={validationState}
+          isInvalid={isInvalid}
           autoFocus={autoFocus}
           UNSAFE_className={classNames(styles, 'spectrum-Dropdown-trigger', {'is-hovered': isHovered})}>
           <SlotProvider
             slots={{
               icon: {UNSAFE_className: classNames(styles, 'spectrum-Icon'), size: 'S'},
+              avatar: {UNSAFE_className: classNames(styles, 'spectrum-Dropdown-avatar'), size: 'avatar-size-100'},
               text: {
                 ...valueProps,
                 UNSAFE_className: classNames(
@@ -213,7 +220,7 @@ function Picker<T extends object>(props: SpectrumPickerProps<T>, ref: DOMRef<HTM
               aria-label={stringFormatter.format('loading')}
               UNSAFE_className={classNames(styles, 'spectrum-Dropdown-progressCircle')} />
           }
-          {validationState === 'invalid' && !isLoadingInitial && !isDisabled &&
+          {isInvalid && !isLoadingInitial && !isDisabled &&
             <AlertMedium UNSAFE_className={classNames(styles, 'spectrum-Dropdown-invalidIcon')} />
           }
           <ChevronDownMedium UNSAFE_className={classNames(styles, 'spectrum-Dropdown-chevron')} />
@@ -223,14 +230,14 @@ function Picker<T extends object>(props: SpectrumPickerProps<T>, ref: DOMRef<HTM
     </div>
   );
 
-  let wrapperClassName = label ? classNames(
+  let wrapperClassName = classNames(
     styles,
     'spectrum-Field',
     {
       'spectrum-Dropdown-fieldWrapper--quiet': isQuiet,
       'spectrum-Dropdown-fieldWrapper--positionSide': labelPosition === 'side'
     }
-  ) : '';
+  );
 
   return (
     <Field
@@ -240,18 +247,13 @@ function Picker<T extends object>(props: SpectrumPickerProps<T>, ref: DOMRef<HTM
       labelProps={labelProps}
       descriptionProps={descriptionProps}
       errorMessageProps={errorMessageProps}
+      isInvalid={isInvalid}
+      validationErrors={validationErrors}
+      validationDetails={validationDetails}
       showErrorIcon={false}
       includeNecessityIndicatorInAccessibilityName
       elementType="span">
       {picker}
     </Field>
   );
-}
-
-/**
- * Pickers allow users to choose a single option from a collapsible list of options when space is limited.
- */
-// forwardRef doesn't support generic parameters, so cast the result to the correct type
-// https://stackoverflow.com/questions/58469229/react-with-typescript-generics-while-using-react-forwardref
-const _Picker = React.forwardRef(Picker) as <T>(props: SpectrumPickerProps<T> & {ref?: DOMRef<HTMLDivElement>}) => ReactElement;
-export {_Picker as Picker};
+}) as <T>(props: SpectrumPickerProps<T> & {ref?: DOMRef<HTMLDivElement>}) => ReactElement;

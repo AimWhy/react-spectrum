@@ -13,7 +13,7 @@
 import {ActionButton} from '@react-spectrum/button';
 import {AriaTagGroupProps, useTagGroup} from '@react-aria/tag';
 import {classNames, useDOMRef} from '@react-spectrum/utils';
-import {DOMRef, SpectrumLabelableProps, StyleProps, Validation} from '@react-types/shared';
+import {Collection, DOMRef, Node, SpectrumLabelableProps, StyleProps, Validation} from '@react-types/shared';
 import {Field} from '@react-spectrum/label';
 import {FocusRing, FocusScope} from '@react-aria/focus';
 // @ts-ignore
@@ -21,7 +21,7 @@ import intlMessages from '../intl/*.json';
 import {ListCollection, useListState} from '@react-stately/list';
 import {ListKeyboardDelegate} from '@react-aria/selection';
 import {Provider, useProvider, useProviderProps} from '@react-spectrum/provider';
-import React, {ReactElement, useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {JSX, ReactElement, useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import styles from '@adobe/spectrum-css-temp/components/tags/vars.css';
 import {Tag} from './Tag';
 import {useFormProps} from '@react-spectrum/form';
@@ -39,7 +39,7 @@ const TAG_STYLES = {
   }
 };
 
-export interface SpectrumTagGroupProps<T> extends Omit<AriaTagGroupProps<T>, 'selectionMode' | 'disallowEmptySelection' | 'selectedKeys' | 'defaultSelectedKeys' | 'onSelectionChange' | 'selectionBehavior' | 'disabledKeys'>, StyleProps, Omit<SpectrumLabelableProps, 'isRequired' | 'necessityIndicator'>, Omit<Validation, 'isRequired'> {
+export interface SpectrumTagGroupProps<T> extends Omit<AriaTagGroupProps<T>, 'selectionMode' | 'disallowEmptySelection' | 'selectedKeys' | 'defaultSelectedKeys' | 'onSelectionChange' | 'selectionBehavior' | 'disabledKeys'>, StyleProps, Omit<SpectrumLabelableProps, 'isRequired' | 'necessityIndicator'>, Pick<Validation<any>, 'isInvalid' | 'validationState'> {
   /** The label to display on the action button.  */
   actionLabel?: string,
   /** Handler that is called when the action button is pressed. */
@@ -50,7 +50,8 @@ export interface SpectrumTagGroupProps<T> extends Omit<AriaTagGroupProps<T>, 'se
   maxRows?: number
 }
 
-function TagGroup<T extends object>(props: SpectrumTagGroupProps<T>, ref: DOMRef<HTMLDivElement>) {
+/** Tags allow users to categorize content. They can represent keywords or people, and are grouped to describe an item or a search request. */
+export const TagGroup = React.forwardRef(function TagGroup<T extends object>(props: SpectrumTagGroupProps<T>, ref: DOMRef<HTMLDivElement>) {
   props = useProviderProps(props);
   props = useFormProps(props);
   let {
@@ -62,18 +63,18 @@ function TagGroup<T extends object>(props: SpectrumTagGroupProps<T>, ref: DOMRef
     renderEmptyState = () => stringFormatter.format('noTags')
   } = props;
   let domRef = useDOMRef(ref);
-  let containerRef = useRef(null);
-  let tagsRef = useRef(null);
+  let containerRef = useRef<HTMLDivElement>(null);
+  let tagsRef = useRef<HTMLDivElement | null>(null);
   let {direction} = useLocale();
   let {scale} = useProvider();
-  let stringFormatter = useLocalizedStringFormatter(intlMessages);
+  let stringFormatter = useLocalizedStringFormatter(intlMessages, '@react-spectrum/tag');
   let [isCollapsed, setIsCollapsed] = useState(maxRows != null);
   let state = useListState(props);
   let [tagState, setTagState] = useValueEffect({visibleTagCount: state.collection.size, showCollapseButton: false});
   let keyboardDelegate = useMemo(() => {
-    let collection = isCollapsed
+    let collection = (isCollapsed
       ? new ListCollection([...state.collection].slice(0, tagState.visibleTagCount))
-      : new ListCollection([...state.collection]);
+      : new ListCollection([...state.collection])) as Collection<Node<T>>;
     return new ListKeyboardDelegate({
       collection,
       ref: domRef,
@@ -85,16 +86,16 @@ function TagGroup<T extends object>(props: SpectrumTagGroupProps<T>, ref: DOMRef
   delete props.onAction;
   let {gridProps, labelProps, descriptionProps, errorMessageProps} = useTagGroup({...props, keyboardDelegate}, state, tagsRef);
   let actionsId = useId();
-  let actionsRef = useRef(null);
+  let actionsRef = useRef<HTMLDivElement>(null);
 
   let updateVisibleTagCount = useCallback(() => {
-    if (maxRows > 0) {
+    if (maxRows && maxRows > 0) {
       let computeVisibleTagCount = () => {
         // Refs can be null at runtime.
         let currContainerRef: HTMLDivElement | null = containerRef.current;
         let currTagsRef: HTMLDivElement | null = tagsRef.current;
         let currActionsRef: HTMLDivElement | null = actionsRef.current;
-        if (!currContainerRef || !currTagsRef || state.collection.size === 0) {
+        if (!currContainerRef || !currTagsRef || !currActionsRef || state.collection.size === 0) {
           return {
             visibleTagCount: 0,
             showCollapseButton: false
@@ -115,7 +116,7 @@ function TagGroup<T extends object>(props: SpectrumTagGroupProps<T>, ref: DOMRef
             rowCount++;
           }
 
-          if (rowCount > maxRows) {
+          if (maxRows && rowCount > maxRows) {
             break;
           }
           tagWidths.push(width);
@@ -124,7 +125,7 @@ function TagGroup<T extends object>(props: SpectrumTagGroupProps<T>, ref: DOMRef
 
         // Remove tags until there is space for the collapse button and action button (if present) on the last row.
         let buttons = [...currActionsRef.children];
-        if (buttons.length > 0 && rowCount >= maxRows) {
+        if (maxRows && buttons.length > 0 && rowCount >= maxRows && currContainerRef.parentElement) {
           let buttonsWidth = buttons.reduce((acc, curr) => acc += curr.getBoundingClientRect().width, 0);
           buttonsWidth += TAG_STYLES[scale].margin * 2 * buttons.length;
           let end = direction === 'ltr' ? 'right' : 'left';
@@ -134,7 +135,7 @@ function TagGroup<T extends object>(props: SpectrumTagGroupProps<T>, ref: DOMRef
           let availableWidth = containerEnd - lastTagEnd;
 
           while (availableWidth < buttonsWidth && index > 0) {
-            availableWidth += tagWidths.pop();
+            availableWidth += tagWidths.pop()!;
             index--;
           }
         }
@@ -274,8 +275,4 @@ function TagGroup<T extends object>(props: SpectrumTagGroupProps<T>, ref: DOMRef
       </Field>
     </FocusScope>
   );
-}
-
-/** Tags allow users to categorize content. They can represent keywords or people, and are grouped to describe an item or a search request. */
-const _TagGroup = React.forwardRef(TagGroup) as <T>(props: SpectrumTagGroupProps<T> & {ref?: DOMRef<HTMLDivElement>}) => ReactElement;
-export {_TagGroup as TagGroup};
+}) as <T>(props: SpectrumTagGroupProps<T> & {ref?: DOMRef<HTMLDivElement>}) => ReactElement;

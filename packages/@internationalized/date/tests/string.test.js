@@ -122,6 +122,14 @@ describe('string conversion', function () {
       let date = new CalendarDate(123, 2, 3);
       expect(date.toString()).toBe('0123-02-03');
     });
+
+    it('should stringify a BC date', function () {
+      let date = new CalendarDate('BC', 1, 1, 1);
+      expect(date.toString()).toBe('0000-01-01');
+
+      date = new CalendarDate('BC', 2, 1, 1);
+      expect(date.toString()).toBe('-000001-01-01');
+    });
   });
 
   describe('parseDateTime', function () {
@@ -152,6 +160,16 @@ describe('string conversion', function () {
     it('should parse a date with only hours, minutes, and seconds', function () {
       let date = parseDateTime('2020-02-03T12:24:45');
       let expected = new CalendarDateTime(2020, 2, 3, 12, 24, 45, 0);
+      expect(date).toEqual(expected);
+    });
+
+    it('should parse BC dates', function () {
+      let date = parseDateTime('0000-01-01');
+      let expected = new CalendarDateTime('BC', 1, 1, 1);
+      expect(date).toEqual(expected);
+
+      date = parseDateTime('-000002-01-01');
+      expected = new CalendarDateTime('BC', 3, 1, 1);
       expect(date).toEqual(expected);
     });
 
@@ -193,6 +211,14 @@ describe('string conversion', function () {
       let date = new CalendarDateTime(2020, 2, 3, 12, 23, 45, 120);
       expect(date.toString()).toBe('2020-02-03T12:23:45.12');
     });
+
+    it('should stringify a BC date', function () {
+      let date = new CalendarDateTime('BC', 1, 1, 1);
+      expect(date.toString()).toBe('0000-01-01T00:00:00');
+
+      date = new CalendarDateTime('BC', 2, 1, 1);
+      expect(date.toString()).toBe('-000001-01-01T00:00:00');
+    });
   });
 
   describe('parseZonedDateTime', function () {
@@ -223,6 +249,18 @@ describe('string conversion', function () {
     it('should parse a date with a time and an offset with hours and minutes', function () {
       let date = parseZonedDateTime('2020-02-03T12:24:45-08:00[America/Los_Angeles]');
       let expected = new ZonedDateTime(2020, 2, 3, 'America/Los_Angeles', -28800000, 12, 24, 45);
+      expect(date).toEqual(expected);
+
+      date = parseZonedDateTime('2020-02-03T12:24:45-0800[America/Los_Angeles]');
+      expected = new ZonedDateTime(2020, 2, 3, 'America/Los_Angeles', -28800000, 12, 24, 45);
+      expect(date).toEqual(expected);
+
+      date = parseZonedDateTime('2020-02-03T12:24:45-08[America/Los_Angeles]');
+      expected = new ZonedDateTime(2020, 2, 3, 'America/Los_Angeles', -28800000, 12, 24, 45);
+      expect(date).toEqual(expected);
+
+      date = parseZonedDateTime('2020-02-03T12:24:45+0000[UTC]');
+      expected = new ZonedDateTime(2020, 2, 3, 'UTC', 0, 12, 24, 45);
       expect(date).toEqual(expected);
     });
 
@@ -262,6 +300,16 @@ describe('string conversion', function () {
       expect(date).toEqual(expected);
     });
 
+    it('should parse BC dates', function () {
+      let date = parseZonedDateTime('0000-01-01T01:00[America/Los_Angeles]');
+      let expected = new ZonedDateTime('BC', 1, 1, 1, 'America/Los_Angeles', -28378000, 1, 0, 0);
+      expect(date).toEqual(expected);
+
+      date = parseZonedDateTime('-000002-01-01T01:00[America/Los_Angeles]');
+      expected = new ZonedDateTime('BC', 3, 1, 1, 'America/Los_Angeles', -28378000, 1, 0, 0);
+      expect(date).toEqual(expected);
+    });
+
     it('should error if parsing a date with an invalid offset', function () {
       expect(() => parseZonedDateTime('2020-02-03T12:24:45.12-04:00[America/Los_Angeles]')).toThrow();
       expect(() => parseZonedDateTime('2020-02-03T12:24:45.12-08:24[America/Los_Angeles]')).toThrow();
@@ -289,6 +337,14 @@ describe('string conversion', function () {
     it('should stringify a date with milliseconds', function () {
       let date = new ZonedDateTime(2020, 2, 3, 'America/Los_Angeles', -28800000, 12, 24, 45, 120);
       expect(date.toString()).toBe('2020-02-03T12:24:45.12-08:00[America/Los_Angeles]');
+    });
+
+    it('should stringify a BC date', function () {
+      let date = new ZonedDateTime('BC', 1, 1, 1, 'UTC', 0, 1, 0, 0);
+      expect(date.toString()).toBe('0000-01-01T01:00:00+00:00[UTC]');
+
+      date = new ZonedDateTime('BC', 2, 1, 1, 'UTC', 0, 1, 0, 0);
+      expect(date.toString()).toBe('-000001-01-01T01:00:00+00:00[UTC]');
     });
   });
 
@@ -329,6 +385,28 @@ describe('string conversion', function () {
       date = parseAbsolute('2021-11-07T01:00-08:00', 'America/Los_Angeles');
       expected = new ZonedDateTime(2021, 11, 7, 'America/Los_Angeles', -28800000, 1, 0, 0);
       expect(date).toEqual(expected);
+
+      date = parseAbsolute('2021-11-07T01:00-0800', 'America/Los_Angeles');
+      expected = new ZonedDateTime(2021, 11, 7, 'America/Los_Angeles', -28800000, 1, 0, 0);
+      expect(date).toEqual(expected);
+
+      date = parseAbsolute('2021-11-07T01:00-08', 'America/Los_Angeles');
+      expected = new ZonedDateTime(2021, 11, 7, 'America/Los_Angeles', -28800000, 1, 0, 0);
+      expect(date).toEqual(expected);
+
+      date = parseAbsolute('2021-11-07T01:00+0000', 'America/Los_Angeles');
+      expected = new ZonedDateTime(2021, 11, 6, 'America/Los_Angeles', -25200000, 18, 0, 0);
+      expect(date).toEqual(expected);
+    });
+
+    it('should parse BC dates', function () {
+      let date = parseAbsolute('0000-01-01T01:00Z', 'UTC');
+      let expected =  new ZonedDateTime('BC', 1, 1, 1, 'UTC', 0, 1, 0, 0);
+      expect(date).toEqual(expected);
+
+      date = parseAbsolute('-000002-01-01T01:00Z', 'UTC');
+      expected = new ZonedDateTime('BC', 3, 1, 1, 'UTC', 0, 1, 0, 0);
+      expect(date).toEqual(expected);
     });
 
     it('should error if missing offset or Z', function () {
@@ -351,6 +429,14 @@ describe('string conversion', function () {
       let date = new ZonedDateTime(2020, 2, 3, 'America/Los_Angeles', -28800000, 14, 32, 45);
       expect(date.toAbsoluteString()).toBe('2020-02-03T22:32:45.000Z');
     });
+
+    it('should stringify a BC date', function () {
+      let date = new ZonedDateTime('BC', 1, 1, 1, 'UTC', 0, 1, 0, 0);
+      expect(date.toAbsoluteString()).toBe('0000-01-01T01:00:00.000Z');
+
+      date = new ZonedDateTime('BC', 2, 1, 1, 'UTC', 0, 1, 0, 0);
+      expect(date.toAbsoluteString()).toBe('-000001-01-01T01:00:00.000Z');
+    });
   });
 
   describe('parseDuration', function () {
@@ -366,7 +452,7 @@ describe('string conversion', function () {
         seconds: 5
       });
     });
-  
+
     it('parses an ISO 8601 duration string that contains years, months, weeks, days, hours, minutes, and fractional values for seconds expressed with a period and returns a DateTimeDuration object', function () {
       const duration = parseDuration('P3Y6M6W4DT12H30M5.5S');
       expect(duration).toStrictEqual({
@@ -379,7 +465,7 @@ describe('string conversion', function () {
         seconds: 5.5
       });
     });
-  
+
     it('parses an ISO 8601 duration string that contains years, months, weeks, days, hours, minutes, and fractional values for seconds expressed with a comma and returns a DateTimeDuration object', function () {
       const duration = parseDuration('P3Y6M6W4DT12H30M5,5S');
       expect(duration).toStrictEqual({
@@ -444,7 +530,7 @@ describe('string conversion', function () {
         seconds: 0
       });
     });
-  
+
     it('parses a negative ISO 8601 duration string that contains years, months, weeks, days, hours, minutes, and seconds and returns a DateTimeDuration object', function () {
       const duration = parseDuration('-P3Y6M6W4DT12H30M5S');
       expect(duration).toStrictEqual({
@@ -457,7 +543,7 @@ describe('string conversion', function () {
         seconds: -5
       });
     });
-  
+
     it('parses an ISO 8601 duration string that contains years, months, weeks, days, hours, minutes, and seconds with a preceding + sign and returns a DateTimeDuration object', function () {
       const duration = parseDuration('+P3Y6M6W4DT12H30M5S');
       expect(duration).toStrictEqual({
@@ -483,7 +569,7 @@ describe('string conversion', function () {
         seconds: 15
       });
     });
-  
+
     it('parses an ISO 8601 duration string that contains years, months, weeks, and days and returns a DateTimeDuration object', function () {
       const duration = parseDuration('P7Y8M14W6D');
       expect(duration).toStrictEqual({
@@ -496,7 +582,7 @@ describe('string conversion', function () {
         seconds: 0
       });
     });
-  
+
     it('parses an ISO 8601 duration string that contains years, months, hours, and seconds and returns a DateTimeDuration object', function () {
       const duration = parseDuration('P18Y7MT20H15S');
       expect(duration).toStrictEqual({
@@ -509,7 +595,20 @@ describe('string conversion', function () {
         seconds: 15
       });
     });
-  
+
+    it('parses an ISO 8601 duration string with values exceeding normal calendar constraints', function () {
+      const duration = parseDuration('P99Y99M99W99DT99H99M99S');
+      expect(duration).toStrictEqual({
+        years: 99,
+        months: 99,
+        weeks: 99,
+        days: 99,
+        hours: 99,
+        minutes: 99,
+        seconds: 99
+      });
+    });
+
     it('throws an error when passed an improperly formatted ISO 8601 duration string', function () {
       expect(() => {
         parseDuration('+-P18Y7MT20H15S');
@@ -526,9 +625,6 @@ describe('string conversion', function () {
       expect(() => {
         parseDuration('P18Y7MT');
       }).toThrow('Invalid ISO 8601 Duration string: P18Y7MT');
-      expect(() => {
-        parseDuration('P18Y7MT30H15S');
-      }).toThrow('Invalid ISO 8601 Duration string: P18Y7MT30H15S');
       expect(() => {
         parseDuration('7Y6D85');
       }).toThrow('Invalid ISO 8601 Duration string: 7Y6D85');

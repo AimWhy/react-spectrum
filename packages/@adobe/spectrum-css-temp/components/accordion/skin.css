@@ -12,39 +12,20 @@ governing permissions and limitations under the License.
 
 :root {
   --spectrum-accordion-text-color-disabled: var(--spectrum-alias-text-color-disabled);
-}
-
-.spectrum-Accordion-item {
-  border-color: var(--spectrum-accordion-border-color);
-
-  &:first-of-type {
-    border-top-color: var(--spectrum-accordion-border-color);
-  }
+  --spectrum-accordion-background-color-down: var(--spectrum-global-color-gray-300);
 }
 
 .spectrum-Accordion-itemHeader {
   color: var(--spectrum-alias-text-color);
 
-  &:hover {
+  &:hover, &:focus-visible {
     color: var(--spectrum-alias-text-color-hover);
-
     background-color: var(--spectrum-accordion-background-color-hover);
   }
 
-  &:focus-ring {
-    &:after  {
-      background-color: var(--spectrum-accordion-border-left-color-key-focus);
-    }
-  }
-}
-
-.spectrum-Accordion-item {
-  &.is-open {
-    .spectrum-Accordion-itemHeader {
-      &:hover {
-        background-color: transparent;
-      }
-    }
+  &.is-pressed {
+    color: var(--spectrum-accordion-text-color-down);
+    background-color: var(--spectrum-accordion-background-color-down);
   }
 }
 
@@ -52,7 +33,7 @@ governing permissions and limitations under the License.
   .spectrum-Accordion-itemHeader {
     &,
     &:hover,
-    &:focus-ring {
+    &:focus-visible {
       color: var(--spectrum-accordion-text-color-disabled);
       background-color: transparent;
     }
@@ -60,8 +41,13 @@ governing permissions and limitations under the License.
 }
 @media (forced-colors: active) {
   .spectrum-Accordion-itemHeader {
-    &:focus-ring {
-      outline: 3px solid CanvasText;
+    border: none;
+    &:focus-visible {
+      outline: 2px solid CanvasText;
     }
+  }
+
+  .spectrum-Accordion-item.spectrum-Accordion-item--quiet {
+    border: none
   }
 }

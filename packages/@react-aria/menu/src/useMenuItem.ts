@@ -10,12 +10,12 @@
  * governing permissions and limitations under the License.
  */
 
-import {DOMAttributes, FocusableElement, PressEvent} from '@react-types/shared';
+import {DOMAttributes, DOMProps, FocusableElement, FocusEvents, HoverEvents, Key, KeyboardEvents, PressEvent, PressEvents, RefObject, RouterOptions} from '@react-types/shared';
+import {filterDOMProps, mergeProps, useLinkProps, useRouter, useSlotId} from '@react-aria/utils';
 import {getItemCount} from '@react-stately/collections';
-import {isFocusVisible, useHover, usePress} from '@react-aria/interactions';
-import {Key, RefObject} from 'react';
-import {menuData} from './useMenu';
-import {mergeProps, useSlotId} from '@react-aria/utils';
+import {isFocusVisible, useFocus, useHover, useKeyboard, usePress} from '@react-aria/interactions';
+import {menuData} from './utils';
+import {SelectionManager} from '@react-stately/selection';
 import {TreeState} from '@react-stately/tree';
 import {useSelectableItem} from '@react-aria/selection';
 
@@ -34,6 +34,8 @@ export interface MenuItemAria {
 
   /** Whether the item is currently focused. */
   isFocused: boolean,
+  /** Whether the item is keyboard focused. */
+  isFocusVisible: boolean,
   /** Whether the item is currently selected. */
   isSelected: boolean,
   /** Whether the item is currently in a pressed state. */
@@ -42,7 +44,7 @@ export interface MenuItemAria {
   isDisabled: boolean
 }
 
-export interface AriaMenuItemProps {
+export interface AriaMenuItemProps extends DOMProps, PressEvents, HoverEvents, KeyboardEvents, FocusEvents  {
   /**
    * Whether the menu item is disabled.
    * @deprecated - pass disabledKeys to useTreeState instead.
@@ -59,7 +61,7 @@ export interface AriaMenuItemProps {
   'aria-label'?: string,
 
   /** The unique key for the menu item. */
-  key?: Key,
+  key: Key,
 
   /**
    * Handler that is called when the menu should close after selecting an item.
@@ -80,7 +82,19 @@ export interface AriaMenuItemProps {
    * Handler that is called when the user activates the item.
    * @deprecated - pass to the menu instead.
    */
-  onAction?: (key: Key) => void
+  onAction?: (key: Key) => void,
+
+  /** What kind of popup the item opens. */
+  'aria-haspopup'?: 'menu' | 'dialog',
+
+  /** Indicates whether the menu item's popup element is expanded or collapsed. */
+  'aria-expanded'?: boolean | 'true' | 'false',
+
+  /** Identifies the menu item's popup element whose contents or presence is controlled by the menu item. */
+  'aria-controls'?: string,
+
+  /** Override of the selection manager. By default, `state.selectionManager` is used. */
+  selectionManager?: SelectionManager
 }
 
 /**
@@ -89,25 +103,66 @@ export interface AriaMenuItemProps {
  * @param props - Props for the item.
  * @param state - State for the menu, as returned by `useTreeState`.
  */
-export function useMenuItem<T>(props: AriaMenuItemProps, state: TreeState<T>, ref: RefObject<FocusableElement>): MenuItemAria {
+export function useMenuItem<T>(props: AriaMenuItemProps, state: TreeState<T>, ref: RefObject<FocusableElement | null>): MenuItemAria {
   let {
+    id,
     key,
     closeOnSelect,
-    isVirtualized
+    isVirtualized,
+    'aria-haspopup': hasPopup,
+    onPressStart: pressStartProp,
+    onPressUp: pressUpProp,
+    onPress: pressProp,
+    onPressChange,
+    onPressEnd,
+    onHoverStart: hoverStartProp,
+    onHoverChange,
+    onHoverEnd,
+    onKeyDown,
+    onKeyUp,
+    onFocus,
+    onFocusChange,
+    onBlur,
+    selectionManager = state.selectionManager
   } = props;
 
-  let isDisabled = props.isDisabled ?? state.disabledKeys.has(key);
-  let isSelected = props.isSelected ?? state.selectionManager.isSelected(key);
-
-  let data = menuData.get(state);
+  let isTrigger = !!hasPopup;
+  let isTriggerExpanded = isTrigger && props['aria-expanded'] === 'true';
+  let isDisabled = props.isDisabled ?? selectionManager.isDisabled(key);
+  let isSelected = props.isSelected ?? selectionManager.isSelected(key);
+  let data = menuData.get(state)!;
+  let item = state.collection.getItem(key);
   let onClose = props.onClose || data.onClose;
-  let onAction = props.onAction || data.onAction;
+  let router = useRouter();
+  let performAction = (e: PressEvent) => {
+    if (isTrigger) {
+      return;
+    }
+
+    if (item?.props?.onAction) {
+      item.props.onAction();
+    } else if (props.onAction) {
+      props.onAction(key);
+    }
+
+    if (data.onAction) {
+      // Must reassign to variable otherwise `this` binding gets messed up. Something to do with WeakMap.
+      let onAction = data.onAction;
+      onAction(key);
+    }
+
+    if (e.target instanceof HTMLAnchorElement && item) {
+      router.open(e.target, e, item.props.href, item.props.routerOptions as RouterOptions);
+    }
+  };
 
   let role = 'menuitem';
-  if (state.selectionManager.selectionMode === 'single') {
-    role = 'menuitemradio';
-  } else if (state.selectionManager.selectionMode === 'multiple') {
-    role = 'menuitemcheckbox';
+  if (!isTrigger) {
+    if (selectionManager.selectionMode === 'single') {
+      role = 'menuitemradio';
+    } else if (selectionManager.selectionMode === 'multiple') {
+      role = 'menuitemcheckbox';
+    }
   }
 
   let labelId = useSlotId();
@@ -115,87 +170,143 @@ export function useMenuItem<T>(props: AriaMenuItemProps, state: TreeState<T>, re
   let keyboardId = useSlotId();
 
   let ariaProps = {
+    id,
     'aria-disabled': isDisabled || undefined,
     role,
     'aria-label': props['aria-label'],
     'aria-labelledby': labelId,
-    'aria-describedby': [descriptionId, keyboardId].filter(Boolean).join(' ') || undefined
+    'aria-describedby': [descriptionId, keyboardId].filter(Boolean).join(' ') || undefined,
+    'aria-controls': props['aria-controls'],
+    'aria-haspopup': hasPopup,
+    'aria-expanded': props['aria-expanded']
   };
 
-  if (state.selectionManager.selectionMode !== 'none') {
+  if (selectionManager.selectionMode !== 'none' && !isTrigger) {
     ariaProps['aria-checked'] = isSelected;
   }
 
   if (isVirtualized) {
-    ariaProps['aria-posinset'] = state.collection.getItem(key).index;
+    ariaProps['aria-posinset'] = item?.index;
     ariaProps['aria-setsize'] = getItemCount(state.collection);
   }
 
-  let onKeyDown = (e: KeyboardEvent) => {
-    // Ignore repeating events, which may have started on the menu trigger before moving
-    // focus to the menu item. We want to wait for a second complete key press sequence.
-    if (e.repeat) {
-      return;
+  let onPressStart = (e: PressEvent) => {
+    if (e.pointerType === 'keyboard') {
+      performAction(e);
     }
 
-    switch (e.key) {
-      case ' ':
-        if (!isDisabled && state.selectionManager.selectionMode === 'none' && closeOnSelect !== false && onClose) {
-          onClose();
-        }
-        break;
-      case 'Enter':
-        // The Enter key should always close on select, except if overridden.
-        if (!isDisabled && closeOnSelect !== false && onClose) {
-          onClose();
-        }
-        break;
-    }
+    pressStartProp?.(e);
   };
 
-  let onPressStart = (e: PressEvent) => {
-    if (e.pointerType === 'keyboard' && onAction) {
-      onAction(key);
+  let maybeClose = () => {
+    // Pressing a menu item should close by default in single selection mode but not multiple
+    // selection mode, except if overridden by the closeOnSelect prop.
+    if (!isTrigger && onClose && (closeOnSelect ?? (selectionManager.selectionMode !== 'multiple' || selectionManager.isLink(key)))) {
+      onClose();
     }
   };
 
   let onPressUp = (e: PressEvent) => {
-    if (e.pointerType !== 'keyboard') {
-      if (onAction) {
-        onAction(key);
-      }
-
-      // Pressing a menu item should close by default in single selection mode but not multiple
-      // selection mode, except if overridden by the closeOnSelect prop.
-      if (onClose && (closeOnSelect ?? state.selectionManager.selectionMode !== 'multiple')) {
-        onClose();
-      }
+    // If interacting with mouse, allow the user to mouse down on the trigger button,
+    // drag, and release over an item (matching native behavior).
+    if (e.pointerType === 'mouse') {
+      performAction(e);
+      maybeClose();
     }
+
+    pressUpProp?.(e);
+  };
+
+  let onPress = (e: PressEvent) => {
+    if (e.pointerType !== 'keyboard' && e.pointerType !== 'mouse') {
+      performAction(e);
+      maybeClose();
+    }
+
+    pressProp?.(e);
   };
 
   let {itemProps, isFocused} = useSelectableItem({
-    selectionManager: state.selectionManager,
+    id,
+    selectionManager: selectionManager,
     key,
     ref,
     shouldSelectOnPressUp: true,
-    allowsDifferentPressOrigin: true
+    allowsDifferentPressOrigin: true,
+    // Disable all handling of links in useSelectable item
+    // because we handle it ourselves. The behavior of menus
+    // is slightly different from other collections because
+    // actions are performed on key down rather than key up.
+    linkBehavior: 'none',
+    shouldUseVirtualFocus: data.shouldUseVirtualFocus
   });
 
-  let {pressProps, isPressed} = usePress({onPressStart, onPressUp, isDisabled});
+  let {pressProps, isPressed} = usePress({
+    onPressStart,
+    onPress,
+    onPressUp,
+    onPressChange,
+    onPressEnd,
+    isDisabled
+  });
   let {hoverProps} = useHover({
     isDisabled,
-    onHoverStart() {
-      if (!isFocusVisible()) {
-        state.selectionManager.setFocused(true);
-        state.selectionManager.setFocusedKey(key);
+    onHoverStart(e) {
+      // Hovering over an already expanded sub dialog trigger should keep focus in the dialog.
+      if (!isFocusVisible() && !(isTriggerExpanded && hasPopup === 'dialog')) {
+        selectionManager.setFocused(true);
+        selectionManager.setFocusedKey(key);
       }
-    }
+      hoverStartProp?.(e);
+    },
+    onHoverChange,
+    onHoverEnd
   });
+
+  let {keyboardProps} = useKeyboard({
+    onKeyDown: (e) => {
+      // Ignore repeating events, which may have started on the menu trigger before moving
+      // focus to the menu item. We want to wait for a second complete key press sequence.
+      if (e.repeat) {
+        e.continuePropagation();
+        return;
+      }
+
+      switch (e.key) {
+        case ' ':
+          if (!isDisabled && selectionManager.selectionMode === 'none' && !isTrigger && closeOnSelect !== false && onClose) {
+            onClose();
+          }
+          break;
+        case 'Enter':
+          // The Enter key should always close on select, except if overridden.
+          if (!isDisabled && closeOnSelect !== false && !isTrigger && onClose) {
+            onClose();
+          }
+          break;
+        default:
+          if (!isTrigger) {
+            e.continuePropagation();
+          }
+
+          onKeyDown?.(e);
+          break;
+      }
+    },
+    onKeyUp
+  });
+
+  let {focusProps} = useFocus({onBlur, onFocus, onFocusChange});
+  let domProps = filterDOMProps(item?.props);
+  delete domProps.id;
+  let linkProps = useLinkProps(item?.props);
 
   return {
     menuItemProps: {
       ...ariaProps,
-      ...mergeProps(itemProps, pressProps, hoverProps, {onKeyDown})
+      ...mergeProps(domProps, linkProps, isTrigger ? {onFocus: itemProps.onFocus, 'data-key': itemProps['data-key']} : itemProps, pressProps, hoverProps, keyboardProps, focusProps),
+      // If a submenu is expanded, set the tabIndex to -1 so that shift tabbing goes out of the menu instead of the parent menu item.
+      tabIndex: itemProps.tabIndex != null && isTriggerExpanded ? -1 : itemProps.tabIndex
     },
     labelProps: {
       id: labelId
@@ -207,6 +318,7 @@ export function useMenuItem<T>(props: AriaMenuItemProps, state: TreeState<T>, re
       id: keyboardId
     },
     isFocused,
+    isFocusVisible: isFocused && isFocusVisible(),
     isSelected,
     isPressed,
     isDisabled

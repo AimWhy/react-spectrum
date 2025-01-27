@@ -20,37 +20,27 @@ export default {
   },
   argTypes: {
     selectionMode: {
-      control: {
-        type: 'radio',
-        options: ['none', 'single', 'multiple']
-      }
+      control: 'radio',
+      options: ['none', 'single', 'multiple']
     },
     selectionStyle: {
-      control: {
-        type: 'radio',
-        options: ['checkbox', 'highlight']
-      }
+      control: 'radio',
+      options: ['checkbox', 'highlight']
     },
     isQuiet: {
-      control: {type: 'boolean'}
+      control: 'boolean'
     },
     density: {
-      control: {
-        type: 'select',
-        options: ['compact', 'regular', 'spacious']
-      }
+      control: 'select',
+      options: ['compact', 'regular', 'spacious']
     },
     overflowMode: {
-      control: {
-        type: 'radio',
-        options: ['truncate', 'wrap']
-      }
+      control: 'radio',
+      options: ['truncate', 'wrap']
     },
     disabledBehavior: {
-      control: {
-        type: 'radio',
-        options: ['selection', 'all']
-      }
+      control: 'radio',
+      options: ['selection', 'all']
     }
   }
 } as ComponentMeta<typeof ListView>;
@@ -61,7 +51,7 @@ let getAllowedDropOperationsAction = action('getAllowedDropOperationsAction');
 export const DragOut: ListViewStory = {
   render: (args) => (
     <Flex direction="row" wrap alignItems="center">
-      <input />
+      <input aria-label="input before" />
       <Droppable />
       <DragExample
         dragHookOptions={{onDragStart: action('dragStart'), onDragEnd: action('dragEnd')}}
@@ -74,7 +64,7 @@ export const DragOut: ListViewStory = {
 export const CustomDragPreview: ListViewStory = {
   render: (args) => (
     <Flex direction="row" wrap alignItems="center">
-      <input />
+      <input aria-label="input before" />
       <Droppable />
       <DragExample
         dragHookOptions={{
@@ -109,6 +99,20 @@ export const DragWithinScroll: ListViewStory = {
     </Flex>
   ),
   name: 'Drag within list scrolling (Reorder)'
+};
+
+let manyItems: {id: string, type: string, textValue: string}[] = [];
+for (let i = 0; i < 100; i++) {
+  manyItems.push({id: 'item' + i, type: 'item', textValue: 'Item ' + i});
+}
+
+export const DragWithinMany: ListViewStory = {
+  render: (args) => (
+    <Flex direction="row" wrap alignItems="center" height={400}>
+      <ReorderExample {...args} items={manyItems} getAllowedDropOperationsAction={getAllowedDropOperationsAction} disabledKeys={['1']} onDrop={action('drop')} onDragStart={action('dragStart')} onDragEnd={action('dragEnd')} />
+    </Flex>
+  ),
+  name: 'Drag within list with many items'
 };
 
 export const DragIntoFolder: ListViewStory = {
@@ -146,7 +150,7 @@ export const DragBetweenRootOnly: ListViewStory = {
 export const DraggableOnAction: ListViewStory = {
   render: (args) => (
     <Flex direction="row" wrap alignItems="center">
-      <input />
+      <input aria-label="input before" />
       <Droppable />
       <DragExample listViewProps={{onAction: action('onAction'), ...args}} dragHookOptions={{onDragStart: action('dragStart'), onDragEnd: action('dragEnd')}} />
     </Flex>
@@ -162,7 +166,7 @@ export const DraggableOnAction: ListViewStory = {
 export const DraggableCopyLink: ListViewStory = {
   render: (args) => (
     <Flex direction="row" wrap alignItems="center">
-      <input />
+      <input aria-label="input before" />
       <Droppable />
       <DragExample listViewProps={{onAction: action('onAction'), ...args}} dragHookOptions={{onDragStart: action('dragStart'), onDragEnd: action('dragEnd'), getAllowedDropOperations: () => { getAllowedDropOperationsAction(); return ['copy', 'link', 'cancel'];}}} />
     </Flex>

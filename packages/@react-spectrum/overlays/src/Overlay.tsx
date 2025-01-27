@@ -17,8 +17,21 @@ import {Provider} from '@react-spectrum/provider';
 import React, {useCallback, useState} from 'react';
 import {Overlay as ReactAriaOverlay} from '@react-aria/overlays';
 
-function Overlay(props: OverlayProps, ref: DOMRef<HTMLDivElement>) {
-  let {children, isOpen, container, onEnter, onEntering, onEntered, onExit, onExiting, onExited, nodeRef} = props;
+export const Overlay = React.forwardRef(function Overlay(props: OverlayProps, ref: DOMRef<HTMLDivElement>) {
+  let {
+    children,
+    isOpen,
+    disableFocusManagement,
+    container,
+    onEnter,
+    onEntering,
+    onEntered,
+    onExit,
+    onExiting,
+    onExited,
+    nodeRef
+  } = props;
+
   let [exited, setExited] = useState(!isOpen);
 
   let handleEntered = useCallback(() => {
@@ -43,7 +56,7 @@ function Overlay(props: OverlayProps, ref: DOMRef<HTMLDivElement>) {
   }
 
   return (
-    <ReactAriaOverlay portalContainer={container}>
+    <ReactAriaOverlay portalContainer={container} disableFocusManagement={disableFocusManagement} isExiting={!isOpen}>
       <Provider ref={ref} UNSAFE_style={{background: 'transparent', isolation: 'isolate'}} isDisabled={false}>
         <OpenTransition
           in={isOpen}
@@ -60,7 +73,4 @@ function Overlay(props: OverlayProps, ref: DOMRef<HTMLDivElement>) {
       </Provider>
     </ReactAriaOverlay>
   );
-}
-
-let _Overlay = React.forwardRef(Overlay);
-export {_Overlay as Overlay};
+});

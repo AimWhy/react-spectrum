@@ -14,14 +14,13 @@ import {action} from '@storybook/addon-actions';
 import {Color, SpectrumColorFieldProps} from '@react-types/color';
 import {ColorField} from '../';
 import {ComponentMeta, ComponentStoryObj} from '@storybook/react';
-import {Content} from '@react-spectrum/view';
+import {Content, View} from '@react-spectrum/view';
 import {ContextualHelp} from '@react-spectrum/contextualhelp';
 import {Flex} from '@react-spectrum/layout';
 import {Heading} from '@react-spectrum/text';
 import {parseColor} from '@react-stately/color';
 import React, {useState} from 'react';
 import {useId} from '@react-aria/utils';
-import {View} from '@react-spectrum/view';
 import {VisuallyHidden} from '@react-aria/visually-hidden';
 
 export type ColorFieldStory = ComponentStoryObj<typeof ColorField>;
@@ -77,9 +76,11 @@ export default {
       control: 'select',
       options: ['top', 'side']
     },
-    validationState: {
-      control: 'select',
-      options: [null, 'valid', 'invalid']
+    isInvalid: {
+      control: 'boolean'
+    },
+    isWheelDisabled: {
+      control: 'boolean'
     },
     description: {
       control: 'text'
@@ -89,6 +90,14 @@ export default {
     },
     width: {
       control: 'text'
+    },
+    colorSpace: {
+      control: 'select',
+      options: ['rgb', 'hsl', 'hsb']
+    },
+    channel: {
+      control: 'select',
+      options: [null, 'red', 'green', 'blue', 'hue', 'saturation', 'lightness', 'brightness']
     }
   }
 } as ComponentMeta<typeof ColorField>;
@@ -142,7 +151,7 @@ export const ContextualHelpStory: ColorFieldStory = {
 };
 
 function ControlledColorField(props: SpectrumColorFieldProps) {
-  let [color, setColor] = useState<string | Color | null | undefined>(props.value);
+  let [color, setColor] = useState<string | Color | null | undefined>(props.value || '#000000');
   let onChange = (color: Color | null) => {
     setColor(color);
     if (props.onChange) { props.onChange(color); }

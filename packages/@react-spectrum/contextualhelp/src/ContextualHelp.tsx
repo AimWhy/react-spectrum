@@ -15,7 +15,7 @@ import {classNames, ClearSlots, SlotProvider} from '@react-spectrum/utils';
 import {Dialog, DialogTrigger} from '@react-spectrum/dialog';
 import {FocusableRef} from '@react-types/shared';
 import HelpOutline from '@spectrum-icons/workflow/HelpOutline';
-import helpStyles from './contextualhelp.css';
+import helpStyles from '@adobe/spectrum-css-temp/components/contextualhelp/vars.css';
 import InfoOutline from '@spectrum-icons/workflow/InfoOutline';
 // @ts-ignore
 import intlMessages from '../intl/*.json';
@@ -24,7 +24,10 @@ import React from 'react';
 import {SpectrumContextualHelpProps} from '@react-types/contextualhelp';
 import {useLocalizedStringFormatter} from '@react-aria/i18n';
 
-function ContextualHelp(props: SpectrumContextualHelpProps, ref: FocusableRef<HTMLButtonElement>) {
+/**
+ * Contextual help shows a user extra information about the state of an adjacent component, or a total view.
+ */
+export const ContextualHelp = React.forwardRef(function ContextualHelp(props: SpectrumContextualHelpProps, ref: FocusableRef<HTMLButtonElement>) {
   let {
     variant = 'help',
     placement = 'bottom start',
@@ -32,7 +35,7 @@ function ContextualHelp(props: SpectrumContextualHelpProps, ref: FocusableRef<HT
     ...otherProps
   } = props;
 
-  let stringFormatter = useLocalizedStringFormatter(intlMessages);
+  let stringFormatter = useLocalizedStringFormatter(intlMessages, '@react-spectrum/contextualhelp');
 
   let icon = variant === 'info' ? <InfoOutline /> : <HelpOutline />;
 
@@ -61,10 +64,4 @@ function ContextualHelp(props: SpectrumContextualHelpProps, ref: FocusableRef<HT
       </ClearSlots>
     </DialogTrigger>
   );
-}
-
-/**
- * Contextual help shows a user extra information about the state of an adjacent component, or a total view.
- */
-let _ContextualHelp = React.forwardRef(ContextualHelp);
-export {_ContextualHelp as ContextualHelp};
+});

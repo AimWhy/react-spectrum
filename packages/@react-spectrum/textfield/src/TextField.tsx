@@ -13,14 +13,21 @@
 import React, {forwardRef, Ref, useRef} from 'react';
 import {SpectrumTextFieldProps, TextFieldRef} from '@react-types/textfield';
 import {TextFieldBase} from './TextFieldBase';
+import {useFormProps} from '@react-spectrum/form';
 import {useProviderProps} from '@react-spectrum/provider';
 import {useTextField} from '@react-aria/textfield';
 
-function TextField(props: SpectrumTextFieldProps, ref: Ref<TextFieldRef>) {
+/**
+ * TextFields are text inputs that allow users to input custom text entries
+ * with a keyboard. Various decorations can be displayed around the field to
+ * communicate the entry requirements.
+ */
+export const TextField = forwardRef(function TextField(props: SpectrumTextFieldProps, ref: Ref<TextFieldRef>) {
   props = useProviderProps(props);
+  props = useFormProps(props);
 
   let inputRef = useRef<HTMLInputElement>(null);
-  let {labelProps, inputProps, descriptionProps, errorMessageProps} = useTextField(props, inputRef);
+  let result = useTextField(props, inputRef);
 
   if (props.placeholder) {
     console.warn('Placeholders are deprecated due to accessibility issues. Please use help text instead. See the docs for details: https://react-spectrum.adobe.com/react-spectrum/TextField.html#help-text');
@@ -29,19 +36,8 @@ function TextField(props: SpectrumTextFieldProps, ref: Ref<TextFieldRef>) {
   return (
     <TextFieldBase
       {...props}
-      labelProps={labelProps}
-      inputProps={inputProps}
-      descriptionProps={descriptionProps}
-      errorMessageProps={errorMessageProps}
+      {...result}
       ref={ref}
       inputRef={inputRef} />
   );
-}
-
-/**
- * TextFields are text inputs that allow users to input custom text entries
- * with a keyboard. Various decorations can be displayed around the field to
- * communicate the entry requirements.
- */
-const _TextField = forwardRef(TextField);
-export {_TextField as TextField};
+});

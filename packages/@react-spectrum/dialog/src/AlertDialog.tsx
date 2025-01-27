@@ -32,7 +32,7 @@ import {useLocalizedStringFormatter} from '@react-aria/i18n';
 /**
  * AlertDialogs are a specific type of Dialog. They display important information that users need to acknowledge.
  */
-function AlertDialog(props: SpectrumAlertDialogProps, ref: DOMRef) {
+export const AlertDialog = forwardRef(function AlertDialog(props: SpectrumAlertDialogProps, ref: DOMRef) {
   let {
     onClose = () => {}
   } = useContext(DialogContext) || {} as DialogContextValue;
@@ -53,7 +53,7 @@ function AlertDialog(props: SpectrumAlertDialogProps, ref: DOMRef) {
     ...otherProps
   } = props;
   let {styleProps} = useStyleProps(otherProps);
-  let stringFormatter = useLocalizedStringFormatter(intlMessages);
+  let stringFormatter = useLocalizedStringFormatter(intlMessages, '@react-spectrum/dialog');
 
   let confirmVariant: SpectrumButtonProps['variant'] = 'primary';
   if (variant) {
@@ -108,10 +108,4 @@ function AlertDialog(props: SpectrumAlertDialogProps, ref: DOMRef) {
       </ButtonGroup>
     </Dialog>
   );
-}
-
-/**
- * AlertDialogs are a specific type of Dialog. They display important information that users need to acknowledge.
- */
-let _AlertDialog = forwardRef(AlertDialog);
-export {_AlertDialog as AlertDialog};
+});

@@ -11,16 +11,17 @@
  */
 
 import {AriaToggleProps} from '@react-types/checkbox';
-import {filterDOMProps, mergeProps} from '@react-aria/utils';
-import {InputHTMLAttributes, RefObject} from 'react';
+import {filterDOMProps, mergeProps, useFormReset} from '@react-aria/utils';
+import {InputHTMLAttributes, LabelHTMLAttributes} from 'react';
+import {RefObject} from '@react-types/shared';
 import {ToggleState} from '@react-stately/toggle';
 import {useFocusable} from '@react-aria/focus';
 import {usePress} from '@react-aria/interactions';
 
 export interface ToggleAria {
-  /**
-   * Props to be spread on the input element.
-   */
+  /** Props to be spread on the label element. */
+  labelProps: LabelHTMLAttributes<HTMLLabelElement>,
+  /** Props to be spread on the input element. */
   inputProps: InputHTMLAttributes<HTMLInputElement>,
   /** Whether the toggle is selected. */
   isSelected: boolean,
@@ -29,23 +30,25 @@ export interface ToggleAria {
   /** Whether the toggle is disabled. */
   isDisabled: boolean,
   /** Whether the toggle is read only. */
-  isReadOnly: boolean
+  isReadOnly: boolean,
+  /** Whether the toggle is invalid. */
+  isInvalid: boolean
 }
 
 /**
  * Handles interactions for toggle elements, e.g. Checkboxes and Switches.
  */
-export function useToggle(props: AriaToggleProps, state: ToggleState, ref: RefObject<HTMLInputElement>): ToggleAria {
+export function useToggle(props: AriaToggleProps, state: ToggleState, ref: RefObject<HTMLInputElement | null>): ToggleAria {
   let {
     isDisabled = false,
-    isRequired = false,
     isReadOnly = false,
     value,
     name,
     children,
     'aria-label': ariaLabel,
     'aria-labelledby': ariaLabelledby,
-    validationState = 'valid'
+    validationState = 'valid',
+    isInvalid
   } = props;
 
   let onChange = (e) => {
@@ -66,17 +69,27 @@ export function useToggle(props: AriaToggleProps, state: ToggleState, ref: RefOb
     isDisabled
   });
 
+  // iOS does not toggle checkboxes if you drag off and back onto the label, so handle it ourselves.
+  let {pressProps: labelProps, isPressed: isLabelPressed} = usePress({
+    isDisabled: isDisabled || isReadOnly,
+    onPress() {
+      state.toggle();
+    }
+  });
+
   let {focusableProps} = useFocusable(props, ref);
   let interactions = mergeProps(pressProps, focusableProps);
   let domProps = filterDOMProps(props, {labelable: true});
 
+  useFormReset(ref, state.isSelected, state.setSelected);
+
   return {
+    labelProps: mergeProps(labelProps, {onClick: e => e.preventDefault()}),
     inputProps: mergeProps(domProps, {
-      'aria-invalid': validationState === 'invalid' || undefined,
+      'aria-invalid': isInvalid || validationState === 'invalid' || undefined,
       'aria-errormessage': props['aria-errormessage'],
       'aria-controls': props['aria-controls'],
       'aria-readonly': isReadOnly || undefined,
-      'aria-required': isRequired || undefined,
       onChange,
       disabled: isDisabled,
       ...(value == null ? {} : {value}),
@@ -85,8 +98,9 @@ export function useToggle(props: AriaToggleProps, state: ToggleState, ref: RefOb
       ...interactions
     }),
     isSelected: state.isSelected,
-    isPressed,
+    isPressed: isPressed || isLabelPressed,
     isDisabled,
-    isReadOnly
+    isReadOnly,
+    isInvalid: isInvalid || validationState === 'invalid'
   };
 }

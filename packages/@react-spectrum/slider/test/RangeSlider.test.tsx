@@ -10,16 +10,21 @@
  * governing permissions and limitations under the License.
  */
 
-import {fireEvent, render} from '@react-spectrum/test-utils';
+import {fireEvent, pointerMap, render} from '@react-spectrum/test-utils-internal';
 import {press, testKeypresses} from './utils';
 import {Provider} from '@adobe/react-spectrum';
 import {RangeSlider} from '../';
-import React, {useState} from 'react';
+import React, {useCallback, useState} from 'react';
 import {theme} from '@react-spectrum/theme-default';
 import userEvent from '@testing-library/user-event';
 
 
 describe('RangeSlider', function () {
+  let user;
+  beforeAll(() => {
+    user = userEvent.setup({delay: null, pointerMap});
+  });
+
   it('supports aria-label', function () {
     let {getByRole} = render(<RangeSlider aria-label="The Label" />);
 
@@ -34,7 +39,7 @@ describe('RangeSlider', function () {
     let {getAllByRole, getByRole} = render(<RangeSlider label="The Label" />);
 
     let group = getByRole('group');
-    let labelId = group.getAttribute('aria-labelledby');
+    let labelId = group.getAttribute('aria-labelledby')!;
     let [leftSlider, rightSlider] = getAllByRole('slider');
     expect(leftSlider.getAttribute('aria-label')).toBe('Minimum');
     expect(rightSlider.getAttribute('aria-label')).toBe('Maximum');
@@ -63,7 +68,7 @@ describe('RangeSlider', function () {
     expect(queryByRole('status')).toBeNull();
   });
 
-  it('supports disabled', function () {
+  it('supports disabled', async function () {
     let {getAllByRole} = render(<div>
       <button>A</button>
       <RangeSlider label="The Label" isDisabled />
@@ -75,13 +80,13 @@ describe('RangeSlider', function () {
     expect(rightSlider).toBeDisabled();
     let [buttonA, buttonB] = getAllByRole('button');
 
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(buttonA);
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(buttonB);
   });
 
-  it('can be focused', function () {
+  it('can be focused', async function () {
     let {getAllByRole} = render(<div>
       <button>A</button>
       <RangeSlider label="The Label" defaultValue={{start: 20, end: 50}} />
@@ -91,19 +96,19 @@ describe('RangeSlider', function () {
     let [sliderLeft, sliderRight] = getAllByRole('slider');
     let [buttonA, buttonB] = getAllByRole('button');
 
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(buttonA);
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(sliderLeft);
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(sliderRight);
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(buttonB);
-    userEvent.tab({shift: true});
+    await user.tab({shift: true});
     expect(document.activeElement).toBe(sliderRight);
-    userEvent.tab({shift: true});
+    await user.tab({shift: true});
     expect(document.activeElement).toBe(sliderLeft);
-    userEvent.tab({shift: true});
+    await user.tab({shift: true});
     expect(document.activeElement).toBe(buttonA);
   });
 
@@ -126,11 +131,14 @@ describe('RangeSlider', function () {
   });
 
   it('can be controlled', function () {
-    let renders = [];
+    let setValues: any[] = [];
 
     function Test() {
-      let [value, setValue] = useState({start: 20, end: 40});
-      renders.push(value);
+      let [value, _setValue] = useState({start: 20, end: 40});
+      let setValue = useCallback((val) => {
+        setValues.push(val);
+        _setValue(val);
+      }, [_setValue]);
 
       return (<RangeSlider label="The Label" value={value} onChange={setValue} />);
     }
@@ -154,7 +162,7 @@ describe('RangeSlider', function () {
     expect(sliderRight).toHaveAttribute('aria-valuetext', '50');
     expect(output).toHaveTextContent('30 – 50');
 
-    expect(renders).toStrictEqual([{start: 20, end: 40}, {start: 30, end: 40}, {start: 30, end: 50}]);
+    expect(setValues).toStrictEqual([{start: 30, end: 40}, {start: 30, end: 50}]);
   });
 
   it('supports a custom valueLabel', function () {
@@ -178,6 +186,44 @@ describe('RangeSlider', function () {
     fireEvent.change(sliderRight, {target: {value: '60'}});
     expect(output).toHaveTextContent('A5B60C');
     expect(sliderRight).toHaveAttribute('aria-valuetext', '60');
+  });
+
+  it('supports form name', () => {
+    let {getAllByRole} = render(<RangeSlider label="Value" value={{start: 10, end: 40}} startName="minCookies" endName="maxCookies" />);
+    let inputs = getAllByRole('slider');
+    expect(inputs[0]).toHaveAttribute('name', 'minCookies');
+    expect(inputs[0]).toHaveValue('10');
+    expect(inputs[1]).toHaveAttribute('name', 'maxCookies');
+    expect(inputs[1]).toHaveValue('40');
+  });
+
+  it('supports form reset', async () => {
+    function Test() {
+      let [value, setValue] = React.useState({start: 10, end: 40});
+      return (
+        <Provider theme={theme}>
+          <form>
+            <RangeSlider label="Value" value={value} onChange={setValue} />
+            <input type="reset" data-testid="reset" />
+          </form>
+        </Provider>
+      );
+    }
+
+    let {getByTestId, getAllByRole} = render(<Test />);
+    let inputs = getAllByRole('slider');
+
+    expect(inputs[0]).toHaveValue('10');
+    expect(inputs[1]).toHaveValue('40');
+    fireEvent.change(inputs[0], {target: {value: '30'}});
+    fireEvent.change(inputs[1], {target: {value: '60'}});
+    expect(inputs[0]).toHaveValue('30');
+    expect(inputs[1]).toHaveValue('60');
+
+    let button = getByTestId('reset');
+    await user.click(button);
+    expect(inputs[0]).toHaveValue('10');
+    expect(inputs[1]).toHaveValue('40');
   });
 
   describe('formatOptions', () => {
@@ -281,12 +327,15 @@ describe('RangeSlider', function () {
 
   describe('mouse interactions', () => {
     beforeAll(() => {
-      // @ts-ignore
-      jest.spyOn(window.HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({top: 0, left: 0, width: 100, height: 100}));
+      let originalGetBoundingClientRect = window.HTMLElement.prototype.getBoundingClientRect;
+      jest.spyOn(window.HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+        let rect = originalGetBoundingClientRect.call(this);
+        return {...rect, top: 0, left: 0, width: 100, height: 100};
+      });
     });
 
+    let oldMouseEvent = MouseEvent;
     beforeAll(() => {
-      let oldMouseEvent = MouseEvent;
       // @ts-ignore
       global.MouseEvent = class FakeMouseEvent extends MouseEvent {
         _init: {pageX: number, pageY: number};
@@ -301,12 +350,9 @@ describe('RangeSlider', function () {
           return this._init.pageY;
         }
       };
-      // @ts-ignore
-      global.MouseEvent.oldMouseEvent = oldMouseEvent;
     });
     afterAll(() => {
-      // @ts-ignore
-      global.MouseEvent = global.MouseEvent.oldMouseEvent;
+      global.MouseEvent = oldMouseEvent;
     });
 
     it('can click and drag handle', () => {
@@ -319,7 +365,7 @@ describe('RangeSlider', function () {
       );
 
       let [sliderLeft, sliderRight] = getAllByRole('slider');
-      let [thumbLeft, thumbRight] = [sliderLeft.parentElement.parentElement, sliderRight.parentElement.parentElement];
+      let [thumbLeft, thumbRight] = [sliderLeft.parentElement!.parentElement!, sliderRight.parentElement!.parentElement!];
 
       fireEvent.mouseDown(thumbLeft, {clientX: 20, pageX: 20});
       expect(onChangeSpy).not.toHaveBeenCalled();
@@ -365,7 +411,7 @@ describe('RangeSlider', function () {
       );
 
       let [sliderLeft, sliderRight] = getAllByRole('slider');
-      let [thumbLeft, thumbRight] = [sliderLeft.parentElement.parentElement, sliderRight.parentElement.parentElement];
+      let [thumbLeft, thumbRight] = [sliderLeft.parentElement!.parentElement!, sliderRight.parentElement!.parentElement!];
 
       fireEvent.mouseDown(thumbLeft, {clientX: 20, pageX: 20});
       expect(onChangeSpy).not.toHaveBeenCalled();
@@ -404,10 +450,9 @@ describe('RangeSlider', function () {
       );
 
       let [sliderLeft, sliderRight] = getAllByRole('slider');
-      let [thumbLeft, thumbRight] = [sliderLeft.parentElement.parentElement, sliderRight.parentElement.parentElement];
+      let [thumbLeft, thumbRight] = [sliderLeft.parentElement!.parentElement!, sliderRight.parentElement!.parentElement!];
 
-      // @ts-ignore
-      let [leftTrack, middleTrack, rightTrack] = [...thumbLeft.parentElement.children].filter(c => c !== thumbLeft && c !== thumbRight);
+      let [leftTrack, middleTrack, rightTrack] = [...thumbLeft.parentElement!.children].filter(c => c !== thumbLeft && c !== thumbRight);
 
       // left track
       fireEvent.mouseDown(leftTrack, {clientX: 20, pageX: 20});
@@ -456,10 +501,9 @@ describe('RangeSlider', function () {
       );
 
       let [sliderLeft, sliderRight] = getAllByRole('slider');
-      let [thumbLeft, thumbRight] = [sliderLeft.parentElement.parentElement, sliderRight.parentElement.parentElement];
+      let [thumbLeft, thumbRight] = [sliderLeft.parentElement!.parentElement!, sliderRight.parentElement!.parentElement!];
 
-      // @ts-ignore
-      let [leftTrack, middleTrack, rightTrack] = [...thumbLeft.parentElement.children].filter(c => c !== thumbLeft && c !== thumbRight);
+      let [leftTrack, middleTrack, rightTrack] = [...thumbLeft.parentElement!.children].filter(c => c !== thumbLeft && c !== thumbRight);
 
       // left track
       fireEvent.mouseDown(leftTrack, {clientX: 20, pageX: 20});

@@ -11,7 +11,7 @@
  */
 
 import {BuddhistCalendar, CalendarDate, CalendarDateTime, EthiopicAmeteAlemCalendar, EthiopicCalendar, GregorianCalendar, HebrewCalendar, IndianCalendar, IslamicCivilCalendar, IslamicTabularCalendar, IslamicUmalquraCalendar, JapaneseCalendar, PersianCalendar, TaiwanCalendar, Time, toCalendar, toCalendarDate, toCalendarDateTime, toTime, ZonedDateTime} from '..';
-import {fromAbsolute, getTimeZoneOffset, possibleAbsolutes, toAbsolute, toDate} from '../src/conversion';
+import {fromAbsolute, possibleAbsolutes, toAbsolute, toDate} from '../src/conversion';
 
 describe('CalendarDate conversion', function () {
   describe('toAbsolute', function () {
@@ -57,6 +57,11 @@ describe('CalendarDate conversion', function () {
     it('should support passing a CalendarDate without a time', function () {
       let date = new CalendarDate(2020, 2, 3);
       expect(toAbsolute(date, 'America/Los_Angeles')).toBe(new Date('2020-02-03T08:00Z').getTime());
+    });
+
+    it('should support BC dates', function () {
+      let date = new CalendarDateTime('BC', 2, 1, 1);
+      expect(toAbsolute(date, 'UTC')).toEqual(new Date('-000001-01-01T00:00Z').getTime());
     });
   });
 
@@ -104,6 +109,11 @@ describe('CalendarDate conversion', function () {
       let date = new CalendarDate(2020, 2, 3);
       expect(toDate(date, 'America/Los_Angeles')).toEqual(new Date('2020-02-03T08:00Z'));
     });
+
+    it('should support BC dates', function () {
+      let date = new CalendarDateTime('BC', 2, 1, 1);
+      expect(toDate(date, 'UTC')).toEqual(new Date('-000001-01-01T00:00Z'));
+    });
   });
 
   describe('possibleAbsolutes', function () {
@@ -136,29 +146,16 @@ describe('CalendarDate conversion', function () {
       date = fromAbsolute(new Date('2020-02-03T10:00Z').getTime(), 'America/New_York');
       expect(date).toEqual(new ZonedDateTime(2020, 2, 3, 'America/New_York', -18000000, 5));
     });
-  });
 
-  describe('setTimeZoneOffset', () => {
-    it('should support old dates in local timezone with second offsets', () => {
-      let resolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
-      const testCases = [
-        ['America/New_York', '1800-01-01T00:00:00Z', -17_762_000],
-        ['Europe/London', '1800-01-01T00:00:00Z', -75_000],
-        ['Europe/Berlin', '1800-01-01T00:00:00Z', 3_208_000],
-        ['Europe/Rome', '1800-01-01T00:00:00Z', 2_996_000]
-      ];
-      for (let [timezone, date, expectedOffset] of testCases) {
-        jest.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockImplementation(function () {
-          let s = resolvedOptions.call(this);
-          s.timeZone = timezone;
-          return s;
-        });
-
-        const tzOffset = getTimeZoneOffset(new Date(date).getTime(), timezone);
-        expect(tzOffset).toBe(expectedOffset);
-
-        jest.clearAllMocks();
-      }
+    it('should convert a date from absolute in the BC era', function () {
+      let date = fromAbsolute(new Date('0000-01-01T00:00:00.000Z').getTime(), 'UTC');
+      expect(date).toEqual(new ZonedDateTime('BC', 1, 1, 1, 'UTC', 0, 0, 0, 0));
+      date = fromAbsolute(new Date('0001-01-01T00:00:00.000Z').getTime(), 'UTC');
+      expect(date).toEqual(new ZonedDateTime('AD', 1, 1, 1, 'UTC', 0, 0, 0, 0));
+      date = fromAbsolute(new Date('-000001-01-01T00:00:00.000Z').getTime(), 'UTC');
+      expect(date).toEqual(new ZonedDateTime('BC', 2, 1, 1, 'UTC', 0, 0, 0, 0));
+      date = fromAbsolute(new Date('-000009-01-01T00:00:00.000Z').getTime(), 'UTC');
+      expect(date).toEqual(new ZonedDateTime('BC', 10, 1, 1, 'UTC', 0, 0, 0, 0));
     });
   });
 
@@ -372,9 +369,24 @@ describe('CalendarDate conversion', function () {
         expect(toCalendar(date, new GregorianCalendar())).toEqual(new CalendarDate(2020, 9, 2));
       });
 
+      it('persian to gregorian for months greater than 6', function () {
+        let date = new CalendarDate(new PersianCalendar(), 1403, 12, 1);
+        expect(toCalendar(date, new GregorianCalendar())).toEqual(new CalendarDate(2025, 2, 19));
+      });
+
       it('gregorian to persian', function () {
         let date = new CalendarDate(2020, 9, 2);
         expect(toCalendar(date, new PersianCalendar())).toEqual(new CalendarDate(new PersianCalendar(), 1399, 6, 12));
+      });
+
+      it('gregorian to persian for months lower than 6', function () {
+        let date = new CalendarDate(2025, 3, 21);
+        expect(toCalendar(date, new PersianCalendar())).toEqual(new CalendarDate(new PersianCalendar(), 1404, 1, 1));
+      });
+
+      it('persian to gregorian in leap years', function () {
+        let date = new CalendarDate(new PersianCalendar(), 1403, 12, 30);
+        expect(toCalendar(date, new GregorianCalendar())).toEqual(new CalendarDate(2025, 3, 20));
       });
     });
 

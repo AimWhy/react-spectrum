@@ -10,7 +10,8 @@
  * governing permissions and limitations under the License.
  */
 
-import {DOMAttributes} from '@react-types/shared';
+import {AriaButtonProps} from '@react-types/button';
+import {DOMAttributes} from 'react';
 import * as DragManager from './DragManager';
 // @ts-ignore
 import intlMessages from '../intl/*.json';
@@ -19,7 +20,7 @@ import {useDragModality} from './utils';
 import {useLocalizedStringFormatter} from '@react-aria/i18n';
 
 interface VirtualDropResult {
-  dropProps: DOMAttributes
+  dropProps: AriaButtonProps & DOMAttributes<HTMLDivElement>
 }
 
 const MESSAGES = {
@@ -29,7 +30,7 @@ const MESSAGES = {
 };
 
 export function useVirtualDrop(): VirtualDropResult {
-  let stringFormatter = useLocalizedStringFormatter(intlMessages);
+  let stringFormatter = useLocalizedStringFormatter(intlMessages, '@react-aria/dnd');
   let modality = useDragModality();
   let dragSession = DragManager.useDragSession();
   let descriptionProps = useDescription(dragSession ? stringFormatter.format(MESSAGES[modality]) : '');

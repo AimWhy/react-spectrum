@@ -11,13 +11,13 @@
  */
 
 import {announce} from '@react-aria/live-announcer';
-import {Collection, Node, Selection} from '@react-types/shared';
+import {Collection, Key, Node, Selection} from '@react-types/shared';
 // @ts-ignore
 import intlMessages from '../intl/*.json';
-import {Key, useRef} from 'react';
 import {SelectionManager} from '@react-stately/selection';
+import {useEffectEvent, useUpdateEffect} from '@react-aria/utils';
 import {useLocalizedStringFormatter} from '@react-aria/i18n';
-import {useUpdateEffect} from '@react-aria/utils';
+import {useRef} from 'react';
 
 export interface GridSelectionAnnouncementProps {
   /**
@@ -40,14 +40,14 @@ export function useGridSelectionAnnouncement<T>(props: GridSelectionAnnouncement
   let {
     getRowText = (key) => state.collection.getTextValue?.(key) ?? state.collection.getItem(key)?.textValue
   } = props;
-  let stringFormatter = useLocalizedStringFormatter(intlMessages);
+  let stringFormatter = useLocalizedStringFormatter(intlMessages, '@react-aria/grid');
 
   // Many screen readers do not announce when items in a grid are selected/deselected.
   // We do this using an ARIA live region.
   let selection = state.selectionManager.rawSelection;
   let lastSelection = useRef(selection);
-  useUpdateEffect(() => {
-    if (!state.selectionManager.isFocused) {
+  let announceSelectionChange = useEffectEvent(() => {
+    if (!state.selectionManager.isFocused || selection === lastSelection.current) {
       lastSelection.current = selection;
 
       return;
@@ -58,7 +58,7 @@ export function useGridSelectionAnnouncement<T>(props: GridSelectionAnnouncement
 
     // If adding or removing a single row from the selection, announce the name of that item.
     let isReplace = state.selectionManager.selectionBehavior === 'replace';
-    let messages = [];
+    let messages: string[] = [];
 
     if ((state.selectionManager.selectedKeys.size === 1 && isReplace)) {
       if (state.collection.getItem(state.selectionManager.selectedKeys.keys().next().value)) {
@@ -96,7 +96,17 @@ export function useGridSelectionAnnouncement<T>(props: GridSelectionAnnouncement
     }
 
     lastSelection.current = selection;
-  }, [selection]);
+  });
+
+  useUpdateEffect(() => {
+    if (state.selectionManager.isFocused) {
+      announceSelectionChange();
+    } else {
+      // Wait a frame in case the collection is about to become focused (e.g. on mouse down).
+      let raf = requestAnimationFrame(announceSelectionChange);
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [selection, state.selectionManager.isFocused]);
 }
 
 function diffSelection(a: Selection, b: Selection): Set<Key> {

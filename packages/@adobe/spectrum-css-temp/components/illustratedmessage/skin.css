@@ -11,15 +11,23 @@ governing permissions and limitations under the License.
 */
 
 .spectrum-IllustratedMessage > svg {
-  color: var(--spectrum-global-color-gray-500);
+  --spectrum-IllustratedMessage-illustration-color: var(--spectrum-global-color-gray-500);
+
+  color: var(--spectrum-IllustratedMessage-illustration-color);
   fill: currentColor;
   stroke: currentColor;
 }
 
 .spectrum-IllustratedMessage-heading {
-  color: var(--spectrum-heading-page-title-text-color);
+  color: var(--spectrum-heading-3-text-color);
 }
 
 .spectrum-IllustratedMessage-description {
-  color: var(--spectrum-body-secondary-text-color);
+  color: var(--spectrum-body-text-color);
+}
+
+@media (forced-colors: active) {
+  .spectrum-IllustratedMessage > svg {
+    --spectrum-IllustratedMessage-illustration-color: CanvasText;
+  }
 }

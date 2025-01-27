@@ -23,9 +23,9 @@ type MappedDateValue<T> =
 
 export interface CalendarPropsBase {
   /** The minimum allowed date that a user may select. */
-  minValue?: DateValue,
+  minValue?: DateValue | null,
   /** The maximum allowed date that a user may select. */
-  maxValue?: DateValue,
+  maxValue?: DateValue | null,
   /** Callback that is called for each date of the calendar. If it returns true, then the date is unavailable. */
   isDateUnavailable?: (date: DateValue) => boolean,
   /**
@@ -44,18 +44,32 @@ export interface CalendarPropsBase {
    */
   autoFocus?: boolean,
   /** Controls the currently focused date within the calendar. */
-  focusedValue?: DateValue,
+  focusedValue?: DateValue | null,
   /** The date that is focused when the calendar first mounts (uncountrolled). */
-  defaultFocusedValue?: DateValue,
+  defaultFocusedValue?: DateValue | null,
   /** Handler that is called when the focused date changes. */
   onFocusChange?: (date: CalendarDate) => void,
-  /** Whether the current selection is valid or invalid according to application logic. */
+  /**
+   * Whether the current selection is valid or invalid according to application logic.
+   * @deprecated Use `isInvalid` instead.
+   */
   validationState?: ValidationState,
+  /** Whether the current selection is invalid according to application logic. */
+  isInvalid?: boolean,
   /** An error message to display when the selected value is invalid. */
-  errorMessage?: ReactNode
+  errorMessage?: ReactNode,
+  /**
+   * Controls the behavior of paging. Pagination either works by advancing the visible page by visibleDuration (default) or one unit of visibleDuration.
+   * @default visible
+   */
+  pageBehavior?: PageBehavior,
+  /**
+   * The day that starts the week.
+   */
+  firstDayOfWeek?: 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat'
 }
 
-export type DateRange = RangeValue<DateValue>;
+export type DateRange = RangeValue<DateValue> | null;
 export interface CalendarProps<T extends DateValue> extends CalendarPropsBase, ValueBase<T | null, MappedDateValue<T>> {}
 export interface RangeCalendarProps<T extends DateValue> extends CalendarPropsBase, ValueBase<RangeValue<T> | null, RangeValue<MappedDateValue<T>>> {
   /**
@@ -68,6 +82,8 @@ export interface RangeCalendarProps<T extends DateValue> extends CalendarPropsBa
 export interface AriaCalendarProps<T extends DateValue> extends CalendarProps<T>, DOMProps, AriaLabelingProps {}
 
 export interface AriaRangeCalendarProps<T extends DateValue> extends RangeCalendarProps<T>, DOMProps, AriaLabelingProps {}
+
+export type PageBehavior = 'single' | 'visible';
 
 export interface SpectrumCalendarProps<T extends DateValue> extends AriaCalendarProps<T>, StyleProps {
   /**

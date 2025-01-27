@@ -10,8 +10,8 @@
  * governing permissions and limitations under the License.
  */
 
-import {DOMAttributes, LongPressEvent} from '@react-types/shared';
-import {mergeProps, useDescription, useGlobalListeners} from '@react-aria/utils';
+import {DOMAttributes, FocusableElement, LongPressEvent} from '@react-types/shared';
+import {focusWithoutScrolling, getOwnerDocument, mergeProps, useDescription, useGlobalListeners} from '@react-aria/utils';
 import {usePress} from './usePress';
 import {useRef} from 'react';
 
@@ -63,12 +63,13 @@ export function useLongPress(props: LongPressProps): LongPressResult {
     accessibilityDescription
   } = props;
 
-  const timeRef = useRef(null);
+  const timeRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   let {addGlobalListener, removeGlobalListener} = useGlobalListeners();
 
   let {pressProps} = usePress({
     isDisabled,
     onPressStart(e) {
+      e.continuePropagation();
       if (e.pointerType === 'mouse' || e.pointerType === 'touch') {
         if (onLongPressStart) {
           onLongPressStart({
@@ -80,13 +81,19 @@ export function useLongPress(props: LongPressProps): LongPressResult {
         timeRef.current = setTimeout(() => {
           // Prevent other usePress handlers from also handling this event.
           e.target.dispatchEvent(new PointerEvent('pointercancel', {bubbles: true}));
+
+          // Ensure target is focused. On touch devices, browsers typically focus on pointer up.
+          if (getOwnerDocument(e.target).activeElement !== e.target) {
+            focusWithoutScrolling(e.target as FocusableElement);
+          }
+
           if (onLongPress) {
             onLongPress({
               ...e,
               type: 'longpress'
             });
           }
-          timeRef.current = null;
+          timeRef.current = undefined;
         }, threshold);
 
         // Prevent context menu, which may be opened on long press on touch devices
@@ -120,7 +127,7 @@ export function useLongPress(props: LongPressProps): LongPressResult {
     }
   });
 
-  let descriptionProps = useDescription(onLongPress && !isDisabled ? accessibilityDescription : null);
+  let descriptionProps = useDescription(onLongPress && !isDisabled ? accessibilityDescription : undefined);
 
   return {
     longPressProps: mergeProps(pressProps, descriptionProps)

@@ -11,46 +11,61 @@
  */
 
 import {AriaToastRegionProps, useToastRegion} from '@react-aria/toast';
-import {classNames, useIsMobileDevice} from '@react-spectrum/utils';
-import {FocusRing} from '@react-aria/focus';
+import {classNames} from '@react-spectrum/utils';
+import {FocusScope, useFocusRing} from '@react-aria/focus';
+import {mergeProps} from '@react-aria/utils';
 import {Provider} from '@react-spectrum/provider';
-import React, {ReactElement, ReactNode, useRef} from 'react';
+import React, {createContext, ReactElement, ReactNode, useMemo, useRef} from 'react';
 import ReactDOM from 'react-dom';
 import toastContainerStyles from './toastContainer.css';
+import type {ToastPlacement} from './ToastContainer';
 import {ToastState} from '@react-stately/toast';
+import {useUNSTABLE_PortalContext} from '@react-aria/overlays';
 
 interface ToastContainerProps extends AriaToastRegionProps {
   children: ReactNode,
-  state: ToastState<unknown>
+  state: ToastState<unknown>,
+  placement?: ToastPlacement
 }
+
+export const ToasterContext = createContext(false);
 
 export function Toaster(props: ToastContainerProps): ReactElement {
   let {
     children,
     state
   } = props;
-  let containerPlacement = useIsMobileDevice() ? 'center' : 'right';
 
-  let ref = useRef();
+  let ref = useRef(null);
   let {regionProps} = useToastRegion(props, state, ref);
+  let {focusProps, isFocusVisible} = useFocusRing();
+  let {getContainer} = useUNSTABLE_PortalContext();
+
+  let [position, placement] = useMemo(() => {
+    let [pos = 'bottom', place = 'center'] = props.placement?.split(' ') || [];
+    return [pos, place];
+  }, [props.placement]);
 
   let contents = (
     <Provider UNSAFE_style={{background: 'transparent'}}>
-      <FocusRing focusRingClass={classNames(toastContainerStyles, 'focus-ring')}>
-        <div
-          {...regionProps}
-          ref={ref}
-          data-position="bottom"
-          data-placement={containerPlacement}
-          className={classNames(
-            toastContainerStyles,
-            'react-spectrum-ToastContainer'
-          )}>
-          {children}
-        </div>
-      </FocusRing>
+      <FocusScope>
+        <ToasterContext.Provider value={isFocusVisible}>
+          <div
+            {...mergeProps(regionProps, focusProps)}
+            ref={ref}
+            data-position={position}
+            data-placement={placement}
+            className={classNames(
+              toastContainerStyles,
+              'react-spectrum-ToastContainer',
+              {'focus-ring': isFocusVisible}
+            )}>
+            {children}
+          </div>
+        </ToasterContext.Provider>
+      </FocusScope>
     </Provider>
   );
 
-  return ReactDOM.createPortal(contents, document.body);
+  return ReactDOM.createPortal(contents, getContainer?.() ?? document.body);
 }

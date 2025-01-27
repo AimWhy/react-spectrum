@@ -26,37 +26,27 @@ export default {
   },
   argTypes: {
     selectionMode: {
-      control: {
-        type: 'radio',
-        options: ['none', 'single', 'multiple']
-      }
+      control: 'radio',
+      options: ['none', 'single', 'multiple']
     },
     selectionStyle: {
-      control: {
-        type: 'radio',
-        options: ['checkbox', 'highlight']
-      }
+      control: 'radio',
+      options: ['checkbox', 'highlight']
     },
     isQuiet: {
-      control: {type: 'boolean'}
+      control: 'boolean'
     },
     density: {
-      control: {
-        type: 'select',
-        options: ['compact', 'regular', 'spacious']
-      }
+      control: 'select',
+      options: ['compact', 'regular', 'spacious']
     },
     overflowMode: {
-      control: {
-        type: 'radio',
-        options: ['truncate', 'wrap']
-      }
+      control: 'radio',
+      options: ['truncate', 'wrap']
     },
     disabledBehavior: {
-      control: {
-        type: 'radio',
-        options: ['selection', 'all']
-      }
+      control: 'radio',
+      options: ['selection', 'all']
     }
   }
 } as ComponentMeta<typeof ListView>;
@@ -113,6 +103,17 @@ export const DisableFolderSelection: ListViewStory = {
     </ListView>
   ),
   name: 'disable folders selection'
+};
+
+export const Links = (args) => {
+  return (
+    <ListView aria-label="ListView with links" width="250px" height={400} onSelectionChange={action('onSelectionChange')} {...args}>
+      <Item key="https://adobe.com/" href="https://adobe.com/">Adobe</Item>
+      <Item key="https://google.com/" href="https://google.com/">Google</Item>
+      <Item key="https://apple.com/" href="https://apple.com/">Apple</Item>
+      <Item key="https://nytimes.com/" href="https://nytimes.com/">New York Times</Item>
+    </ListView>
+  );
 };
 
 export const OnAction: ListViewStory = {

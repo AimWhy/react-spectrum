@@ -21,7 +21,7 @@ import {Item, SpectrumTagGroupProps, TagGroup} from '../src';
 import {Link} from '@react-spectrum/link';
 import React, {useState} from 'react';
 
-let manyItems = [];
+let manyItems: {key: number}[] = [];
 for (let i = 0; i < 50; i++) {
   let item = {key: i};
   manyItems.push(item);
@@ -91,9 +91,8 @@ export default {
       control: 'select',
       options: ['start', 'end']
     },
-    validationState: {
-      control: 'select',
-      options: [null, 'valid', 'invalid']
+    isInvalid: {
+      control: 'boolean'
     },
     description: {
       control: 'text'
@@ -176,7 +175,7 @@ export const WithAvatar: TagGroupStory = {
     <TagGroup aria-label="Tag group with avatars" {...args}>
       {(item: any) => (
         <Item key={item.key} textValue={item.label}>
-          <Avatar src="https://i.imgur.com/kJOwAdv.png" alt="default Adobe avatar" />
+          {item.key === '1' && <Avatar src="https://i.imgur.com/kJOwAdv.png" alt="default Adobe avatar" />}
           <Text>{item.label}</Text>
         </Item>
       )}
@@ -243,7 +242,7 @@ export const EmptyState: TagGroupStory = {
       {[]}
     </TagGroup>
   ),
-  storyName: 'Empty state'
+  name: 'Empty state'
 };
 
 export const CustomEmptyState: TagGroupStory = {
@@ -251,7 +250,7 @@ export const CustomEmptyState: TagGroupStory = {
   args: {
     renderEmptyState: () => <span>No tags. <Link><a href="//react-spectrum.com">Click here</a></Link> to add some.</span>
   },
-  storyName: 'Custom empty state'
+  name: 'Custom empty state'
 };
 
 function OnRemoveExample(props) {
@@ -281,3 +280,13 @@ function OnRemoveExample(props) {
     </TagGroup>
   );
 }
+
+export const Links: TagGroupStory = {
+  render: (args) => (
+    <TagGroup aria-label="Tag group with links" {...args}>
+      <Item href="https://adobe.com">Adobe</Item>
+      <Item href="https://google.com">Google</Item>
+      <Item href="https://apple.com">Apple</Item>
+    </TagGroup>
+  )
+};

@@ -13,7 +13,8 @@
 import {Button} from '@react-spectrum/button';
 import {Cell, Column, Row, SpectrumColumnProps, TableBody, TableHeader, TableView} from '../';
 import {ColumnSize} from '@react-types/table';
-import React, {Key, useCallback, useMemo, useState} from 'react';
+import {Key} from '@react-types/shared';
+import React, {useCallback, useMemo, useState} from 'react';
 
 export interface PokemonColumn extends Omit<SpectrumColumnProps<any>, 'children'> {
   name: string,
@@ -53,7 +54,7 @@ let defaultRows: PokemonData[] = [
 
 export function ControllingResize(props: {columns?: PokemonColumn[], rows?: PokemonData[], onResize?: (sizes: Map<Key, ColumnSize>) => void, [name: string]: any}) {
   let {columns = defaultColumns, rows = defaultRows, onResize, ...otherProps} = props;
-  let [widths, _setWidths] = useState<Map<Key, ColumnSize>>(() => new Map(columns.filter(col => col.width).map((col) => [col.uid as Key, col.width])));
+  let [widths, _setWidths] = useState<Map<Key, ColumnSize | null>>(() => new Map(columns.filter(col => col.width).map((col) => [col.uid as Key, col.width ?? null])));
 
   let setWidths = useCallback((vals: Map<Key, ColumnSize>) => {
     let controlledKeys = new Set(columns.filter(col => col.width).map((col) => col.uid as Key));

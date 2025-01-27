@@ -9,7 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import {act, render, triggerPress, typeText} from '@react-spectrum/test-utils';
+import {act, pointerMap, render} from '@react-spectrum/test-utils-internal';
 import Filter from '@spectrum-icons/workflow/Filter';
 import {Item, Picker} from '@react-spectrum/picker';
 import {Provider} from '@react-spectrum/provider';
@@ -17,6 +17,7 @@ import React from 'react';
 import {SearchField} from '@react-spectrum/searchfield';
 import {SearchWithin} from '../src';
 import {theme} from '@react-spectrum/theme-default';
+import userEvent from '@testing-library/user-event';
 
 let defaultProps = {
   label: 'Test'
@@ -39,7 +40,10 @@ function renderSearchWithin(props = {}, searchFieldProps = {}, pickerProps = {})
 }
 
 describe('SearchWithin', function () {
+  let user;
+
   beforeAll(function () {
+    user = userEvent.setup({delay: null, pointerMap});
     jest.useFakeTimers();
   });
 
@@ -79,25 +83,25 @@ describe('SearchWithin', function () {
     expect(queryByTestId('searchicon')).toBeNull();
   });
 
-  it('can type in search and get onChange', function () {
+  it('can type in search and get onChange', async function () {
     let onChange = jest.fn();
     let {getByRole} = renderSearchWithin({}, {onChange});
     let searchfield = getByRole('searchbox');
     expect(searchfield).toHaveAttribute('value', '');
 
     act(() => {searchfield.focus();});
-    typeText(searchfield, 'test search');
+    await user.keyboard('test search');
     act(() => {searchfield.blur();});
     expect(searchfield).toHaveAttribute('value', 'test search');
     expect(onChange).toBeCalledTimes(11);
   });
 
-  it('can open menu and get onChange', function () {
+  it('can open menu and get onChange', async function () {
     let onOpenChange = jest.fn();
     let {getByRole} = renderSearchWithin({}, {}, {onOpenChange});
 
     let picker = getByRole('button');
-    triggerPress(picker);
+    await user.click(picker);
 
     let listbox = getByRole('listbox');
     expect(listbox).toBeVisible();
@@ -105,14 +109,14 @@ describe('SearchWithin', function () {
     expect(onOpenChange).toHaveBeenCalledWith(true);
   });
 
-  it('searchfield and picker are labelled correctly', function () {
+  it('searchfield and picker are labelled correctly', async function () {
     let {getByRole, getAllByText, getByText} = renderSearchWithin();
 
     let searchfield = getByRole('searchbox');
     let picker = getByRole('button');
     let group = getByRole('group');
     let hiddenLabel = getByText('Search within');
-    triggerPress(picker);
+    await user.click(picker);
 
     let listbox = getByRole('listbox');
     let label = getAllByText('Test')[0];
@@ -147,7 +151,7 @@ describe('SearchWithin', function () {
     expect(picker).toHaveFocus();
   });
 
-  it('slot props override props provided to children', function () {
+  it('slot props override props provided to children', async function () {
     let {getByRole, getAllByText, getByText} = renderSearchWithin(
       {isDisabled: true, isRequired: false, label: 'Test1'},
       {isDisabled: false, isRequired: true, label: 'Test2', isQuiet: true},
@@ -158,7 +162,7 @@ describe('SearchWithin', function () {
     let picker = getByRole('button');
     let group = getByRole('group');
     let hiddenLabel = getByText('Search within');
-    triggerPress(picker);
+    await user.click(picker);
     let label = getAllByText('Test1')[0];
 
     expect(searchfield).toHaveAttribute('disabled');

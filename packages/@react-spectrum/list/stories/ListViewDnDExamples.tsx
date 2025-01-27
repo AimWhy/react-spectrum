@@ -7,7 +7,7 @@ import File from '@spectrum-icons/illustrations/File';
 import {Flex} from '@react-spectrum/layout';
 import Folder from '@spectrum-icons/illustrations/Folder';
 import {Item, ListView} from '../';
-import {ItemDropTarget} from '@react-types/shared';
+import {ItemDropTarget, Key} from '@react-types/shared';
 import {items} from './ListView.stories';
 import React from 'react';
 import {Text} from '@react-spectrum/text';
@@ -85,15 +85,15 @@ let itemList2 = [
 ];
 
 export function ReorderExample(props) {
-  let {onDrop, onDragStart, onDragEnd, disabledKeys = ['2'], ...otherprops} = props;
+  let {items, onDrop, onDragStart, onDragEnd, disabledKeys = ['2'], ...otherprops} = props;
   let list = useListData({
-    initialItems: props.items || itemList1
+    initialItems: items || itemList1
   });
 
   // Use a random drag type so the items can only be reordered within this list and not dragged elsewhere.
   let dragType = React.useMemo(() => `keys-${Math.random().toString(36).slice(2)}`, []);
 
-  let onMove = (keys: React.Key[], target: ItemDropTarget) => {
+  let onMove = (keys: Key[], target: ItemDropTarget) => {
     if (target.dropPosition === 'before') {
       list.moveBefore(target.key, keys);
     } else {
@@ -120,10 +120,10 @@ export function ReorderExample(props) {
     async onDrop(e) {
       onDrop(e);
       if (e.target.type !== 'root' && e.target.dropPosition !== 'on') {
-        let keys = [];
+        let keys: Key[] = [];
         for (let item of e.items) {
           if (item.kind === 'text') {
-            let key;
+            let key: Key;
             if (item.types.has(dragType)) {
               key = JSON.parse(await item.getText(dragType));
               keys.push(key);
@@ -180,7 +180,7 @@ export function DragIntoItemExample(props) {
 
   let list = useListData({
     initialItems: [
-      {id: '0', type: 'folder', textValue: 'Folder 1', childNodes: []},
+      {id: '0', type: 'folder', textValue: 'Folder 1', childNodes: [] as any[]},
       {id: '1', type: 'item', textValue: 'One'},
       {id: '2', type: 'item', textValue: 'Two'},
       {id: '3', type: 'item', textValue: 'Three'},
@@ -191,15 +191,15 @@ export function DragIntoItemExample(props) {
       {id: '8', type: 'folder', textValue: 'Folder 2', childNodes: []}
     ]
   });
-  let disabledKeys: React.Key[] = ['2', '7'];
+  let disabledKeys: Key[] = ['2', '7'];
 
   // Use a random drag type so the items can only be reordered within this list and not dragged elsewhere.
   let dragType = React.useMemo(() => `keys-${Math.random().toString(36).slice(2)}`, []);
 
-  let onMove = (keys: React.Key[], target: ItemDropTarget) => {
-    let folderItem = list.getItem(target.key);
+  let onMove = (keys: Key[], target: ItemDropTarget) => {
+    let folderItem = list.getItem(target.key)!;
     let draggedItems = keys.map((key) => list.getItem(key));
-    list.update(target.key, {...folderItem, childNodes: [...folderItem.childNodes, ...draggedItems]});
+    list.update(target.key, {...folderItem, childNodes: [...(folderItem.childNodes || []), ...draggedItems]});
     list.remove(...keys);
   };
 
@@ -222,10 +222,10 @@ export function DragIntoItemExample(props) {
     onDrop: async e => {
       onDropAction(e);
       if (e.target.type !== 'root' && e.target.dropPosition === 'on') {
-        let keys = [];
+        let keys: Key[] = [];
         for (let item of e.items) {
           if (item.kind === 'text') {
-            let key;
+            let key: Key;
             if (item.types.has(dragType)) {
               key = JSON.parse(await item.getText(dragType));
               keys.push(key);
@@ -243,7 +243,7 @@ export function DragIntoItemExample(props) {
       }
     },
     getDropOperation(target) {
-      if (target.type === 'root' || target.dropPosition !== 'on' || !list.getItem(target.key).childNodes || disabledKeys.includes(target.key)) {
+      if (target.type === 'root' || target.dropPosition !== 'on' || !list.getItem(target.key)!.childNodes || disabledKeys.includes(target.key)) {
         return 'cancel';
       }
 
@@ -289,7 +289,7 @@ export function DragBetweenListsExample(props) {
     initialItems: props.items2 || itemList2
   });
 
-  let onMove = (keys: React.Key[], target: ItemDropTarget) => {
+  let onMove = (keys: Key[], target: ItemDropTarget) => {
     let sourceList = list1.getItem(keys[0]) ? list1 : list2;
     let destinationList = list1.getItem(target.key) ? list1 : list2;
 
@@ -333,10 +333,10 @@ export function DragBetweenListsExample(props) {
     onDrop: async e => {
       onDropAction(e);
       if (e.target.type !== 'root' && e.target.dropPosition !== 'on') {
-        let keys = [];
+        let keys: Key[] = [];
         for (let item of e.items) {
           if (item.kind === 'text') {
-            let key;
+            let key: Key;
             if (item.types.has(dragType)) {
               key = JSON.parse(await item.getText(dragType));
               keys.push(key);
@@ -418,7 +418,7 @@ export function DragBetweenListsRootOnlyExample(props) {
     initialItems: props.items2 || itemList2
   });
 
-  let onMove = (keys: React.Key[], destinationList) => {
+  let onMove = (keys: Key[], destinationList) => {
     let sourceList = list1.getItem(keys[0]) ? list1 : list2;
 
     let items = keys.map(key => sourceList.getItem(key));
@@ -445,10 +445,10 @@ export function DragBetweenListsRootOnlyExample(props) {
     onDrop: async e => {
       onDropAction(e);
       if (e.target.type === 'root') {
-        let keys = [];
+        let keys: Key[] = [];
         for (let item of e.items) {
           if (item.kind === 'text') {
-            let key;
+            let key: Key;
             if (item.types.has('list2')) {
               key = JSON.parse(await item.getText('list2'));
               keys.push(key);
@@ -491,10 +491,10 @@ export function DragBetweenListsRootOnlyExample(props) {
     onDrop: async e => {
       onDropAction(e);
       if (e.target.type === 'root') {
-        let keys = [];
+        let keys: Key[] = [];
         for (let item of e.items) {
           if (item.kind === 'text') {
-            let key;
+            let key: Key;
             if (item.types.has('list1')) {
               key = JSON.parse(await item.getText('list1'));
               keys.push(key);

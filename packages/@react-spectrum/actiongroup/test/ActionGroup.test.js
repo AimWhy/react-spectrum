@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-import {act, fireEvent, render, screen, triggerPress, within} from '@react-spectrum/test-utils';
+import {act, fireEvent, pointerMap, render, screen, within} from '@react-spectrum/test-utils-internal';
 import {ActionGroup} from '../';
 import {Button} from '@react-spectrum/button';
 import {Dialog, DialogTrigger} from '@react-spectrum/dialog';
@@ -55,28 +55,6 @@ class BtnBehavior {
   }
 }
 let btnBehavior = new BtnBehavior();
-
-function pressKeyOnButton(key) {
-  return (button) => {
-    fireEvent.keyDown(button, {key});
-  };
-}
-
-function pressArrowRight(button) {
-  return pressKeyOnButton('ArrowRight')(button);
-}
-
-function pressArrowLeft(button) {
-  return pressKeyOnButton('ArrowLeft')(button);
-}
-
-function pressArrowUp(button) {
-  return pressKeyOnButton('ArrowUp')(button);
-}
-
-function pressArrowDown(button) {
-  return pressKeyOnButton('ArrowDown')(button);
-}
 
 function verifyResult(buttons, values, index) {
   expect(buttons).checkButtonIndex(values, index);
@@ -129,21 +107,29 @@ function renderComponentWithExtraInputs(props) {
 }
 
 describe('ActionGroup', function () {
+  let user;
+
   beforeAll(function () {
+    user = userEvent.setup({delay: null, pointerMap});
     jest.useFakeTimers();
 
-    jest.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function () {
+    jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
       if (this instanceof HTMLButtonElement) {
-        return 100;
+        return {width: 100, height: 0, top: 0, left: 0, bottom: 0, right: 0};
       }
 
-      return 1000;
+      return {width: 1000, height: 0, top: 0, left: 0, bottom: 0, right: 0};
     });
   });
 
   afterEach(() => {
     btnBehavior.reset();
   });
+  let tab = async () => await user.tab();
+  let pressArrowRight = async () => await user.keyboard('{ArrowRight}');
+  let pressArrowLeft = async () => await user.keyboard('{ArrowLeft}');
+  let pressArrowUp = async () => await user.keyboard('{ArrowUp}');
+  let pressArrowDown = async () => await user.keyboard('{ArrowDown}');
 
   it.each`
   Name               | ComponentGroup   | Component
@@ -192,15 +178,15 @@ describe('ActionGroup', function () {
 
   it.each`
     Name                                                   | props                                         | orders
-    ${'(left/right arrows, ltr + horizontal) ActionGroup'} | ${{locale: 'de-DE'}}                          | ${[{action: () => {userEvent.tab();}, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowRight, result: btnBehavior.forward}, {action: pressArrowLeft, result: btnBehavior.backward}, {action: pressArrowLeft, result: btnBehavior.backward}]}
-    ${'(left/right arrows, rtl + horizontal) ActionGroup'} | ${{locale: 'ar-AE'}}                          | ${[{action: () => {userEvent.tab();}, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowRight, result: btnBehavior.backward}, {action: pressArrowLeft, result: btnBehavior.forward}, {action: pressArrowLeft, result: btnBehavior.forward}]}
-    ${'(up/down arrows, ltr + horizontal) ActionGroup'}    | ${{locale: 'de-DE'}}                          | ${[{action: () => {userEvent.tab();}, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowDown, result: btnBehavior.forward}, {action: pressArrowUp, result: btnBehavior.backward}, {action: pressArrowUp, result: btnBehavior.backward}]}
-    ${'(up/down arrows, rtl + horizontal) ActionGroup'}    | ${{locale: 'ar-AE'}}                          | ${[{action: () => {userEvent.tab();}, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowDown, result: btnBehavior.forward}, {action: pressArrowUp, result: btnBehavior.backward}, {action: pressArrowUp, result: btnBehavior.backward}]}
-    ${'(left/right arrows, ltr + vertical) ActionGroup'}   | ${{locale: 'de-DE', orientation: 'vertical'}} | ${[{action: () => {userEvent.tab();}, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowRight, result: btnBehavior.forward}, {action: pressArrowLeft, result: btnBehavior.backward}, {action: pressArrowLeft, result: btnBehavior.backward}]}
-    ${'(left/right arrows, rtl + vertical) ActionGroup'}   | ${{locale: 'ar-AE', orientation: 'vertical'}} | ${[{action: () => {userEvent.tab();}, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowRight, result: btnBehavior.forward}, {action: pressArrowLeft, result: btnBehavior.backward}, {action: pressArrowLeft, result: btnBehavior.backward}]}
-    ${'(up/down arrows, ltr + vertical) ActionGroup'}      | ${{locale: 'de-DE', orientation: 'vertical'}} | ${[{action: () => {userEvent.tab();}, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowDown, result: btnBehavior.forward}, {action: pressArrowUp, result: btnBehavior.backward}, {action: pressArrowUp, result: btnBehavior.backward}]}
-    ${'(up/down arrows, rtl + vertical) ActionGroup'}      | ${{locale: 'ar-AE', orientation: 'vertical'}} | ${[{action: () => {userEvent.tab();}, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowDown, result: btnBehavior.forward}, {action: pressArrowUp, result: btnBehavior.backward}, {action: pressArrowUp, result: btnBehavior.backward}]}
-  `('$Name shifts button focus in the correct direction on key press', function ({Name, props, orders}) {
+    ${'(left/right arrows, ltr + horizontal) ActionGroup'} | ${{locale: 'de-DE'}}                          | ${[{action: tab, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowRight, result: btnBehavior.forward}, {action: pressArrowLeft, result: btnBehavior.backward}, {action: pressArrowLeft, result: btnBehavior.backward}]}
+    ${'(left/right arrows, rtl + horizontal) ActionGroup'} | ${{locale: 'ar-AE'}}                          | ${[{action: tab, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowRight, result: btnBehavior.backward}, {action: pressArrowLeft, result: btnBehavior.forward}, {action: pressArrowLeft, result: btnBehavior.forward}]}
+    ${'(up/down arrows, ltr + horizontal) ActionGroup'}    | ${{locale: 'de-DE'}}                          | ${[{action: tab, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowDown, result: btnBehavior.forward}, {action: pressArrowUp, result: btnBehavior.backward}, {action: pressArrowUp, result: btnBehavior.backward}]}
+    ${'(up/down arrows, rtl + horizontal) ActionGroup'}    | ${{locale: 'ar-AE'}}                          | ${[{action: tab, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowDown, result: btnBehavior.forward}, {action: pressArrowUp, result: btnBehavior.backward}, {action: pressArrowUp, result: btnBehavior.backward}]}
+    ${'(left/right arrows, ltr + vertical) ActionGroup'}   | ${{locale: 'de-DE', orientation: 'vertical'}} | ${[{action: tab, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowRight, result: btnBehavior.forward}, {action: pressArrowLeft, result: btnBehavior.backward}, {action: pressArrowLeft, result: btnBehavior.backward}]}
+    ${'(left/right arrows, rtl + vertical) ActionGroup'}   | ${{locale: 'ar-AE', orientation: 'vertical'}} | ${[{action: tab, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowRight, result: btnBehavior.forward}, {action: pressArrowLeft, result: btnBehavior.backward}, {action: pressArrowLeft, result: btnBehavior.backward}]}
+    ${'(up/down arrows, ltr + vertical) ActionGroup'}      | ${{locale: 'de-DE', orientation: 'vertical'}} | ${[{action: tab, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowDown, result: btnBehavior.forward}, {action: pressArrowUp, result: btnBehavior.backward}, {action: pressArrowUp, result: btnBehavior.backward}]}
+    ${'(up/down arrows, rtl + vertical) ActionGroup'}      | ${{locale: 'ar-AE', orientation: 'vertical'}} | ${[{action: tab, result: () => expectedButtonIndices.button1Focused}, {action: pressArrowDown, result: btnBehavior.forward}, {action: pressArrowUp, result: btnBehavior.backward}, {action: pressArrowUp, result: btnBehavior.backward}]}
+  `('$Name shifts button focus in the correct direction on key press', async function ({Name, props, orders}) {
     let tree = render(
       <Provider theme={theme} locale={props.locale}>
         <ActionGroup orientation={props.orientation} >
@@ -213,24 +199,26 @@ describe('ActionGroup', function () {
 
     let buttons = tree.getAllByRole('button');
 
-    orders.forEach(({action, result}, index) => {
-      action(document.activeElement);
+    let index = 0;
+    for (let {action, result} of orders) {
+      await action();
       verifyResult(buttons, result(), index);
-    });
+      index++;
+    }
   });
 
   it.each`
     Name                     | props                | disabledKeys   | orders
-    ${'middle disabled'}     | ${{locale: 'de-DE'}} | ${['1']}       | ${[{action: () => {userEvent.tab();}, result: () => ['0', '-1', '-1']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['0', '-1', '-1']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['0', '-1', '-1']}]}
-    ${'first disabled'}      | ${{locale: 'de-DE'}} | ${['0']}       | ${[{action: () => {userEvent.tab();}, result: () => ['-1', '0', '-1']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['-1', '0', '-1']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['-1', '0', '-1']}]}
-    ${'last disabled'}       | ${{locale: 'de-DE'}} | ${['2']}       | ${[{action: () => {userEvent.tab();}, result: () => ['0', '-1', '-1']}, {action: pressArrowRight, result: () => ['-1', '0', '-1']}, {action: pressArrowRight, result: () => ['0', '-1', '-1']}, {action: pressArrowLeft, result: () => ['-1', '0', '-1']}, {action: pressArrowLeft, result: () => ['0', '-1', '-1']}]}
-    ${'1&2 disabled'}        | ${{locale: 'de-DE'}} | ${['0', '1']}  | ${[{action: () => {userEvent.tab();}, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}]}
-    ${'rtl middle disabled'} | ${{locale: 'ar-AE'}} | ${['1']}       | ${[{action: () => {userEvent.tab();}, result: () => ['0', '-1', '-1']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['0', '-1', '-1']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['0', '-1', '-1']}]}
-    ${'rtl first disabled'}  | ${{locale: 'ar-AE'}} | ${['0']}       | ${[{action: () => {userEvent.tab();}, result: () => ['-1', '0', '-1']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['-1', '0', '-1']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['-1', '0', '-1']}]}
-    ${'rtl last disabled'}   | ${{locale: 'ar-AE'}} | ${['2']}       | ${[{action: () => {userEvent.tab();}, result: () => ['0', '-1', '-1']}, {action: pressArrowRight, result: () => ['-1', '0', '-1']}, {action: pressArrowRight, result: () => ['0', '-1', '-1']}, {action: pressArrowLeft, result: () => ['-1', '0', '-1']}, {action: pressArrowLeft, result: () => ['0', '-1', '-1']}]}
-    ${'rtl 1&2 disabled'}    | ${{locale: 'ar-AE'}} | ${['0', '1']}  | ${[{action: () => {userEvent.tab();}, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}]}
+    ${'middle disabled'}     | ${{locale: 'de-DE'}} | ${['1']}       | ${[{action: tab, result: () => ['0', '-1', '-1']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['0', '-1', '-1']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['0', '-1', '-1']}]}
+    ${'first disabled'}      | ${{locale: 'de-DE'}} | ${['0']}       | ${[{action: tab, result: () => ['-1', '0', '-1']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['-1', '0', '-1']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['-1', '0', '-1']}]}
+    ${'last disabled'}       | ${{locale: 'de-DE'}} | ${['2']}       | ${[{action: tab, result: () => ['0', '-1', '-1']}, {action: pressArrowRight, result: () => ['-1', '0', '-1']}, {action: pressArrowRight, result: () => ['0', '-1', '-1']}, {action: pressArrowLeft, result: () => ['-1', '0', '-1']}, {action: pressArrowLeft, result: () => ['0', '-1', '-1']}]}
+    ${'1&2 disabled'}        | ${{locale: 'de-DE'}} | ${['0', '1']}  | ${[{action: tab, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}]}
+    ${'rtl middle disabled'} | ${{locale: 'ar-AE'}} | ${['1']}       | ${[{action: tab, result: () => ['0', '-1', '-1']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['0', '-1', '-1']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['0', '-1', '-1']}]}
+    ${'rtl first disabled'}  | ${{locale: 'ar-AE'}} | ${['0']}       | ${[{action: tab, result: () => ['-1', '0', '-1']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['-1', '0', '-1']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['-1', '0', '-1']}]}
+    ${'rtl last disabled'}   | ${{locale: 'ar-AE'}} | ${['2']}       | ${[{action: tab, result: () => ['0', '-1', '-1']}, {action: pressArrowRight, result: () => ['-1', '0', '-1']}, {action: pressArrowRight, result: () => ['0', '-1', '-1']}, {action: pressArrowLeft, result: () => ['-1', '0', '-1']}, {action: pressArrowLeft, result: () => ['0', '-1', '-1']}]}
+    ${'rtl 1&2 disabled'}    | ${{locale: 'ar-AE'}} | ${['0', '1']}  | ${[{action: tab, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowRight, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['-1', '-1', '0']}]}
 
-  `('$Name skips disabled keys', function ({Name, props, disabledKeys, orders}) {
+  `('$Name skips disabled keys', async function ({Name, props, disabledKeys, orders}) {
     let tree = render(
       <Provider theme={theme} locale={props.locale}>
         <ActionGroup disabledKeys={disabledKeys}>
@@ -243,17 +231,19 @@ describe('ActionGroup', function () {
 
     let buttons = tree.getAllByRole('button');
 
-    orders.forEach(({action, result}, index) => {
-      action(document.activeElement);
+    let index = 0;
+    for (let {action, result} of orders) {
+      await action();
       verifyResult(buttons, result(), index);
-    });
+      index++;
+    }
   });
 
   it.each`
     Name                         | props                | disabledKeys   | orders
-    ${'middle two disabled'}     | ${{locale: 'de-DE'}} | ${['1', '2']}  | ${[{action: () => {userEvent.tab();}, result: () => ['0', '-1', '-1', '-1']}, {action: pressArrowRight, result: () => ['-1', '-1', '-1', '0']}, {action: pressArrowRight, result: () => ['0', '-1', '-1', '-1']}, {action: pressArrowLeft, result: () => ['-1', '-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['0', '-1', '-1', '-1']}]}
-    ${'rtl middle two disabled'} | ${{locale: 'de-DE'}} | ${['1', '2']}  | ${[{action: () => {userEvent.tab();}, result: () => ['0', '-1', '-1', '-1']}, {action: pressArrowRight, result: () => ['-1', '-1', '-1', '0']}, {action: pressArrowRight, result: () => ['0', '-1', '-1', '-1']}, {action: pressArrowLeft, result: () => ['-1', '-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['0', '-1', '-1', '-1']}]}
-  `('$Name skips multiple disabled keys', function ({Name, props, disabledKeys, orders}) {
+    ${'middle two disabled'}     | ${{locale: 'de-DE'}} | ${['1', '2']}  | ${[{action: tab, result: () => ['0', '-1', '-1', '-1']}, {action: pressArrowRight, result: () => ['-1', '-1', '-1', '0']}, {action: pressArrowRight, result: () => ['0', '-1', '-1', '-1']}, {action: pressArrowLeft, result: () => ['-1', '-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['0', '-1', '-1', '-1']}]}
+    ${'rtl middle two disabled'} | ${{locale: 'de-DE'}} | ${['1', '2']}  | ${[{action: tab, result: () => ['0', '-1', '-1', '-1']}, {action: pressArrowRight, result: () => ['-1', '-1', '-1', '0']}, {action: pressArrowRight, result: () => ['0', '-1', '-1', '-1']}, {action: pressArrowLeft, result: () => ['-1', '-1', '-1', '0']}, {action: pressArrowLeft, result: () => ['0', '-1', '-1', '-1']}]}
+  `('$Name skips multiple disabled keys', async function ({Name, props, disabledKeys, orders}) {
     let tree = render(
       <Provider theme={theme} locale={props.locale}>
         <ActionGroup disabledKeys={disabledKeys}>
@@ -267,10 +257,12 @@ describe('ActionGroup', function () {
 
     let buttons = tree.getAllByRole('button');
 
-    orders.forEach(({action, result}, index) => {
-      action(document.activeElement);
+    let index = 0;
+    for (let {action, result} of orders) {
+      await action();
       verifyResult(buttons, result(), index);
-    });
+      index++;
+    }
   });
 
   it('should be focusable from Tab', async function () {
@@ -281,14 +273,14 @@ describe('ActionGroup', function () {
     let buttons = tree.getAllByRole('radio');
     act(() => {buttonBefore.focus();});
 
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(buttons[0]);
 
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(buttonAfter);
   });
 
-  it('should be focusable from Shift + Tab', function () {
+  it('should be focusable from Shift + Tab', async function () {
     let tree = renderComponentWithExtraInputs({selectionMode: 'single'});
 
     let buttonBefore = tree.getByLabelText('ButtonBefore');
@@ -296,14 +288,14 @@ describe('ActionGroup', function () {
     let buttons = tree.getAllByRole('radio');
     act(() => {buttonAfter.focus();});
 
-    userEvent.tab({shift: true});
+    await user.tab({shift: true});
     expect(document.activeElement).toBe(buttons[1]);
 
-    userEvent.tab({shift: true});
+    await user.tab({shift: true});
     expect(document.activeElement).toBe(buttonBefore);
   });
 
-  it('should remember last focused item', function () {
+  it('should remember last focused item', async function () {
     let tree = renderComponentWithExtraInputs({selectionMode: 'single'});
 
     let buttonBefore = tree.getByLabelText('ButtonBefore');
@@ -311,58 +303,58 @@ describe('ActionGroup', function () {
     let buttons = tree.getAllByRole('radio');
     act(() => {buttonBefore.focus();});
 
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(buttons[0]);
 
-    pressArrowRight(buttons[0]);
+    await pressArrowRight();
     expect(document.activeElement).toBe(buttons[1]);
 
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(buttonAfter);
 
-    userEvent.tab({shift: true});
+    await user.tab({shift: true});
     expect(document.activeElement).toBe(buttons[1]);
   });
 
-  it('ActionGroup handles single selection', function () {
+  it('ActionGroup handles single selection', async function () {
     let {getAllByRole} = renderComponent({selectionMode: 'single'});
 
     let [button1, button2] = getAllByRole('radio');
-    triggerPress(button1);
+    await user.click(button1);
     expect(button1).toHaveAttribute('aria-checked', 'true');
 
-    triggerPress(button2);
+    await user.click(button2);
     expect(button1).toHaveAttribute('aria-checked', 'false');
     expect(button2).toHaveAttribute('aria-checked', 'true');
   });
 
-  it('ActionGroup handles multiple selection', function () {
+  it('ActionGroup handles multiple selection', async function () {
     let {getByRole, getAllByRole} = renderComponent({selectionMode: 'multiple'});
 
     expect(getByRole('toolbar')).toBeTruthy();
     let [button1, button2] = getAllByRole('checkbox');
-    triggerPress(button1);
+    await user.click(button1);
     expect(button1).toHaveAttribute('aria-checked', 'true');
 
-    triggerPress(button2);
+    await user.click(button2);
     expect(button1).toHaveAttribute('aria-checked', 'true');
     expect(button2).toHaveAttribute('aria-checked', 'true');
   });
 
-  it('ActionGroup should not allow selecting all items with cmd + a', function () {
+  it('ActionGroup should not allow selecting all items with cmd + a', async function () {
     let {getAllByRole} = renderComponent({selectionMode: 'multiple'});
 
     let [button1, button2] = getAllByRole('checkbox');
-    triggerPress(button1);
+    await user.click(button1);
     expect(button1).toHaveAttribute('aria-checked', 'true');
     expect(button2).toHaveAttribute('aria-checked', 'false');
 
-    fireEvent.keyDown(button1, {key: 'a', ctrlKey: true});
+    await user.keyboard('{Control>}{a}{/Control}');
     expect(button1).toHaveAttribute('aria-checked', 'true');
     expect(button2).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('ActionGroup handles none selection', function () {
+  it('ActionGroup handles none selection', async function () {
     let {getByRole} = render(
       <Provider theme={theme} locale="de-DE">
         <ActionGroup selectionMode="none">
@@ -372,7 +364,7 @@ describe('ActionGroup', function () {
     );
 
     let button1 = getByRole('button');
-    triggerPress(button1);
+    await user.click(button1);
     expect(button1).not.toHaveAttribute('aria-checked');
   });
 
@@ -394,54 +386,54 @@ describe('ActionGroup', function () {
     expect(button1).toHaveAttribute('tabIndex', '0');
   });
 
-  it('ActionGroup handles disabledKeys', function () {
+  it('ActionGroup handles disabledKeys', async function () {
     let onSelectionChange = jest.fn();
     let {getAllByRole} = renderComponent({selectionMode: 'single', disabledKeys: ['1'], onSelectionChange});
 
     let [button1, button2] = getAllByRole('radio');
-    triggerPress(button1);
+    await user.click(button1);
     expect(button1).toHaveAttribute('disabled');
     expect(onSelectionChange).toBeCalledTimes(0);
-    triggerPress(button2);
+    await user.click(button2);
     expect(button2).not.toHaveAttribute('disabled');
     expect(onSelectionChange).toBeCalledTimes(1);
   });
 
-  it('ActionGroup handles selectedKeys (controlled)', function () {
+  it('ActionGroup handles selectedKeys (controlled)', async function () {
     let onSelectionChange = jest.fn();
     let {getAllByRole} = renderComponent({selectionMode: 'single', selectedKeys: ['1'], onSelectionChange});
 
     let [button1, button2] = getAllByRole('radio');
     expect(button1).toHaveAttribute('aria-checked', 'true');
     expect(button2).toHaveAttribute('aria-checked', 'false');
-    triggerPress(button2);
+    await user.click(button2);
     expect(onSelectionChange).toBeCalledTimes(1);
     expect(button1).toHaveAttribute('aria-checked', 'true');
     expect(button2).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('ActionGroup handles selectedKeys (uncontrolled)', function () {
+  it('ActionGroup handles selectedKeys (uncontrolled)', async function () {
     let onSelectionChange = jest.fn();
     let {getAllByRole} = renderComponent({selectionMode: 'single', defaultSelectedKeys: ['1'], onSelectionChange});
 
     let [button1, button2] = getAllByRole('radio');
     expect(button1).toHaveAttribute('aria-checked', 'true');
     expect(button2).toHaveAttribute('aria-checked', 'false');
-    triggerPress(button2);
+    await user.click(button2);
     expect(onSelectionChange).toBeCalledTimes(1);
     expect(button1).toHaveAttribute('aria-checked', 'false');
     expect(button2).toHaveAttribute('aria-checked', 'true');
   });
 
-  it('ActionGroup deselects the selected button', function () {
+  it('ActionGroup deselects the selected button', async function () {
     let onSelectionChange = jest.fn();
     let {getAllByRole} = renderComponent({selectionMode: 'single', onSelectionChange});
 
     let [button1] = getAllByRole('radio');
-    triggerPress(button1);
+    await user.click(button1);
     expect(onSelectionChange).toBeCalledTimes(1);
     expect(new Set(onSelectionChange.mock.calls[0][0])).toEqual(new Set(['1']));
-    triggerPress(button1);
+    await user.click(button1);
     expect(onSelectionChange).toBeCalledTimes(2);
     expect(new Set(onSelectionChange.mock.calls[1][0])).toEqual(new Set([]));
   });
@@ -526,7 +518,7 @@ describe('ActionGroup', function () {
     expect(item).toHaveAttribute('data-testid', 'test');
   });
 
-  it('fires onAction when a button is pressed', function () {
+  it('fires onAction when a button is pressed', async function () {
     let onAction = jest.fn();
     let tree = render(
       <Provider theme={theme} locale="de-DE">
@@ -537,13 +529,13 @@ describe('ActionGroup', function () {
     );
 
     let button = tree.getByRole('button');
-    triggerPress(button);
+    await user.click(button);
 
     expect(onAction).toHaveBeenCalledTimes(1);
     expect(onAction).toHaveBeenCalledWith('test');
   });
 
-  it('does not fire onAction if the action group is disabled', function () {
+  it('does not fire onAction if the action group is disabled', async function () {
     let onAction = jest.fn();
     let tree = render(
       <Provider theme={theme} locale="de-DE">
@@ -554,12 +546,12 @@ describe('ActionGroup', function () {
     );
 
     let button = tree.getByRole('button');
-    triggerPress(button);
+    await user.click(button);
 
     expect(onAction).not.toHaveBeenCalled();
   });
 
-  it('does not fire onAction if the item is disabled', function () {
+  it('does not fire onAction if the item is disabled', async function () {
     let onAction = jest.fn();
     let tree = render(
       <Provider theme={theme} locale="de-DE">
@@ -570,12 +562,12 @@ describe('ActionGroup', function () {
     );
 
     let button = tree.getByRole('button');
-    triggerPress(button);
+    await user.click(button);
 
     expect(onAction).not.toHaveBeenCalled();
   });
 
-  it('supports DialogTrigger as a wrapper around items', function () {
+  it('supports DialogTrigger as a wrapper around items', async function () {
     let tree = render(
       <Provider theme={theme}>
         <ActionGroup>
@@ -591,24 +583,23 @@ describe('ActionGroup', function () {
 
     let button = tree.getByRole('button');
 
+    await user.click(button);
     act(() => {
-      triggerPress(button);
       jest.runAllTimers();
     });
 
     let dialog = tree.getByRole('dialog');
     expect(dialog).toBeVisible();
 
+    await user.keyboard('{Escape}');
     act(() => {
-      fireEvent.keyDown(dialog, {key: 'Escape'});
-      fireEvent.keyUp(dialog, {key: 'Escape'});
       jest.runAllTimers();
     });
 
     expect(tree.queryByRole('dialog')).toBeNull();
   });
 
-  it('supports TooltipTrigger as a wrapper around items', function () {
+  it('supports TooltipTrigger as a wrapper around items', async function () {
     let tree = render(
       <Provider theme={theme}>
         <ActionGroup>
@@ -623,8 +614,7 @@ describe('ActionGroup', function () {
     );
 
     let button = tree.getByRole('button');
-    fireEvent.keyDown(document.body, {key: 'Tab'});
-    fireEvent.keyUp(document.body, {key: 'Tab'});
+    await user.keyboard('{Tab}');
     act(() => button.focus());
 
     let tooltip = tree.getByRole('tooltip');
@@ -632,7 +622,7 @@ describe('ActionGroup', function () {
     expect(button).toHaveAttribute('aria-describedby', tooltip.id);
   });
 
-  it('no infinite loop if all keys are disabled', function () {
+  it('no infinite loop if all keys are disabled', async function () {
     let tree = render(
       <Provider theme={theme}>
         <input type="text" id="foo" autoFocus />
@@ -648,13 +638,13 @@ describe('ActionGroup', function () {
     expect(actiongroup).toHaveAttribute('aria-disabled', 'true');
     let inputs = tree.getAllByRole('textbox');
     expect(document.activeElement).toBe(inputs[0]);
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(inputs[1]);
-    userEvent.tab({shift: true});
+    await user.tab({shift: true});
     expect(document.activeElement).toBe(inputs[0]);
   });
 
-  it('not disabled if extraneous disabledKeys are provided', function () {
+  it('not disabled if extraneous disabledKeys are provided', async function () {
     let tree = render(
       <Provider theme={theme}>
         <input type="text" id="foo" autoFocus />
@@ -671,13 +661,13 @@ describe('ActionGroup', function () {
     let inputs = tree.getAllByRole('textbox');
     let buttons = tree.getAllByRole('radio');
     expect(document.activeElement).toBe(inputs[0]);
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(buttons[1]);
-    userEvent.tab({shift: true});
+    await user.tab({shift: true});
     expect(document.activeElement).toBe(inputs[0]);
   });
 
-  it('is disabled if extraneous disabledKeys are provided in addition to all keys being disabled', function () {
+  it('is disabled if extraneous disabledKeys are provided in addition to all keys being disabled', async function () {
     let tree = render(
       <Provider theme={theme}>
         <input type="text" id="foo" autoFocus />
@@ -693,24 +683,24 @@ describe('ActionGroup', function () {
     expect(actiongroup).toHaveAttribute('aria-disabled', 'true');
     let inputs = tree.getAllByRole('textbox');
     expect(document.activeElement).toBe(inputs[0]);
-    userEvent.tab();
+    await user.tab();
     expect(document.activeElement).toBe(inputs[1]);
-    userEvent.tab({shift: true});
+    await user.tab({shift: true});
     expect(document.activeElement).toBe(inputs[0]);
   });
 
   describe('overflowMode="collapse"', function () {
     beforeEach(() => {
-      jest.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function () {
+      jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
         if (this instanceof HTMLButtonElement) {
-          return 100;
+          return {width: 100, height: 0, top: 0, left: 0, bottom: 0, right: 0};
         }
 
-        return 250;
+        return {width: 250, height: 0, top: 0, left: 0, bottom: 0, right: 0};
       });
     });
 
-    it('collapses overflowing items into a menu', function () {
+    it('collapses overflowing items into a menu', async function () {
       let onAction = jest.fn();
       let tree = render(
         <Provider theme={theme}>
@@ -731,7 +721,7 @@ describe('ActionGroup', function () {
       expect(buttons[1]).toHaveAttribute('aria-haspopup', 'true');
       expect(buttons[1]).not.toHaveAttribute('aria-checked');
 
-      triggerPress(buttons[1]);
+      await user.click(buttons[1]);
 
       let menu = tree.getByRole('menu');
       let items = within(menu).getAllByRole('menuitem');
@@ -740,11 +730,11 @@ describe('ActionGroup', function () {
       expect(items[1]).toHaveTextContent('Three');
       expect(items[2]).toHaveTextContent('Four');
 
-      triggerPress(items[1]);
+      await user.click(items[1]);
       expect(onAction).toHaveBeenCalledWith('three');
     });
 
-    it('collapsed menu items can have DOM attributes passed to them', function () {
+    it('collapsed menu items can have DOM attributes passed to them', async function () {
       let onAction = jest.fn();
       let tree = render(
         <Provider theme={theme}>
@@ -760,14 +750,14 @@ describe('ActionGroup', function () {
       let actiongroup = tree.getByRole('toolbar');
       let buttons = within(actiongroup).getAllByRole('button');
 
-      triggerPress(buttons[1]);
+      await user.click(buttons[1]);
 
       let menu = tree.getByRole('menu');
       let items = within(menu).getAllByRole('menuitem');
       expect(items[0]).toHaveAttribute('data-element', 'two');
     });
 
-    it('handles keyboard focus management properly', function () {
+    it('handles keyboard focus management properly', async function () {
       let onAction = jest.fn();
       let tree = render(
         <Provider theme={theme}>
@@ -790,18 +780,53 @@ describe('ActionGroup', function () {
       expect(buttons[0]).toHaveAttribute('tabIndex', '0');
       expect(buttons[1]).toHaveAttribute('tabIndex', '-1');
 
-      pressArrowRight(buttons[0]);
+      await pressArrowRight();
       expect(buttons[0]).toHaveAttribute('tabIndex', '-1');
       expect(buttons[1]).toHaveAttribute('tabIndex', '0');
     });
 
-    it('passes aria labeling props through to menu button if it is the only child', function () {
-      jest.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function () {
+    it('moves focus if the focused button was removed', function () {
+      let onAction = jest.fn();
+      let tree = render(
+        <Provider theme={theme}>
+          <ActionGroup onAction={onAction}>
+            <Item key="one">One</Item>
+            <Item key="two">Two</Item>
+            <Item key="three">Three</Item>
+            <Item key="four">Four</Item>
+          </ActionGroup>
+        </Provider>
+      );
+
+      let actiongroup = tree.getByRole('toolbar');
+      let buttons = within(actiongroup).getAllByRole('button');
+      expect(buttons[0]).toHaveAttribute('tabIndex', '0');
+      expect(buttons[1]).toHaveAttribute('tabIndex', '0');
+
+      act(() => buttons[2].focus());
+      tree.rerender(
+        <Provider theme={theme}>
+          <ActionGroup onAction={onAction}>
+            <Item key="one">One</Item>
+            <Item key="two">Two</Item>
+            <Item key="four">Four</Item>
+          </ActionGroup>
+        </Provider>
+      );
+      actiongroup = tree.getByRole('toolbar');
+      buttons = within(actiongroup).getAllByRole('button');
+      expect(buttons[0]).toHaveAttribute('tabIndex', '0');
+      expect(buttons[1]).toHaveAttribute('tabIndex', '0');
+      expect(buttons[2]).toHaveAttribute('tabIndex', '0');
+    });
+
+    it('passes aria labeling props through to menu button if it is the only child', async function () {
+      jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
         if (this instanceof HTMLButtonElement) {
-          return 100;
+          return {width: 100, height: 0, top: 0, left: 0, bottom: 0, right: 0};
         }
 
-        return 150;
+        return {width: 150, height: 0, top: 0, left: 0, bottom: 0, right: 0};
       });
 
       let onAction = jest.fn();
@@ -822,7 +847,7 @@ describe('ActionGroup', function () {
       expect(button).toHaveAttribute('aria-haspopup', 'true');
       expect(button).not.toHaveAttribute('aria-checked');
 
-      triggerPress(button);
+      await user.click(button);
 
       let menu = tree.getByRole('menu');
       let items = within(menu).getAllByRole('menuitem');
@@ -832,11 +857,11 @@ describe('ActionGroup', function () {
       expect(items[2]).toHaveTextContent('Three');
       expect(items[3]).toHaveTextContent('Four');
 
-      triggerPress(items[1]);
+      await user.click(items[1]);
       expect(onAction).toHaveBeenCalledWith('two');
     });
 
-    it('collapses all items if selectionMode="single"', function () {
+    it('collapses all items if selectionMode="single"', async function () {
       let onSelectionChange = jest.fn();
       let tree = render(
         <Provider theme={theme}>
@@ -856,7 +881,7 @@ describe('ActionGroup', function () {
       expect(button).toHaveAttribute('aria-haspopup', 'true');
       expect(button).not.toHaveAttribute('aria-checked');
 
-      triggerPress(button);
+      await user.click(button);
 
       let menu = tree.getByRole('menu');
       let items = within(menu).getAllByRole('menuitemradio');
@@ -867,11 +892,11 @@ describe('ActionGroup', function () {
       expect(items[2]).toHaveTextContent('Three');
       expect(items[3]).toHaveTextContent('Four');
 
-      triggerPress(items[2]);
+      await user.click(items[2]);
       expect(onSelectionChange).toHaveBeenCalledTimes(1);
       expect(new Set(onSelectionChange.mock.calls[0][0])).toEqual(new Set(['three']));
 
-      triggerPress(button);
+      await user.click(button);
       menu = tree.getByRole('menu');
       items = within(menu).getAllByRole('menuitemradio');
 
@@ -879,7 +904,7 @@ describe('ActionGroup', function () {
       expect(items[2]).toHaveAttribute('aria-checked', 'true');
     });
 
-    it('collapses all items if selectionMode="multiple"', function () {
+    it('collapses all items if selectionMode="multiple"', async function () {
       let onSelectionChange = jest.fn();
       let tree = render(
         <Provider theme={theme}>
@@ -899,7 +924,7 @@ describe('ActionGroup', function () {
       expect(button).toHaveAttribute('aria-haspopup', 'true');
       expect(button).not.toHaveAttribute('aria-checked');
 
-      triggerPress(button);
+      await user.click(button);
 
       let menu = tree.getByRole('menu');
       let items = within(menu).getAllByRole('menuitemcheckbox');
@@ -913,7 +938,7 @@ describe('ActionGroup', function () {
       expect(items[3]).toHaveTextContent('Four');
       expect(items[3]).not.toHaveAttribute('aria-checked', 'true');
 
-      triggerPress(items[3]);
+      await user.click(items[3]);
       expect(onSelectionChange).toHaveBeenCalledTimes(1);
       expect(new Set(onSelectionChange.mock.calls[0][0])).toEqual(new Set(['two', 'three', 'four']));
 
@@ -946,7 +971,7 @@ describe('ActionGroup', function () {
       expect(buttons[1]).toBeDisabled();
     });
 
-    it('menu items should be disabled for items listed in disabledKeys', function () {
+    it('menu items should be disabled for items listed in disabledKeys', async function () {
       const handleOnAction = jest.fn();
 
       render(
@@ -968,7 +993,7 @@ describe('ActionGroup', function () {
       expect(moreButton).not.toHaveAttribute('aria-checked');
       expect(moreButton).toBeVisible();
 
-      triggerPress(moreButton);
+      await user.click(moreButton);
 
       const menu = screen.getByRole('menu');
       expect(within(menu).getAllByRole('menuitem')).toHaveLength(3);
@@ -985,13 +1010,13 @@ describe('ActionGroup', function () {
       expect(itemFour).toBeVisible();
       expect(itemFour).toHaveAttribute('aria-disabled', 'true');
 
-      triggerPress(itemTwo);
+      await user.click(itemTwo);
       expect(handleOnAction).not.toHaveBeenCalled();
 
-      triggerPress(itemFour);
+      await user.click(itemFour);
       expect(handleOnAction).not.toHaveBeenCalled();
 
-      triggerPress(itemThree);
+      await user.click(itemThree);
       expect(handleOnAction).toHaveBeenCalled();
     });
   });
@@ -1030,7 +1055,7 @@ describe('ActionGroup', function () {
       expect(buttons[0]).toHaveAttribute('aria-describedby', tooltip.id);
     });
 
-    it('should show the text when collapsed into a dropdown', function () {
+    it('should show the text when collapsed into a dropdown', async function () {
       let tree = render(
         <Provider theme={theme}>
           <ActionGroup overflowMode="collapse" buttonLabelBehavior="hide">
@@ -1054,7 +1079,7 @@ describe('ActionGroup', function () {
       let buttons = within(actiongroup).getAllByRole('button');
       expect(buttons.length).toBe(2);
 
-      triggerPress(buttons[1]);
+      await user.click(buttons[1]);
 
       let menu = tree.getByRole('menu');
       let items = within(menu).getAllByRole('menuitem');
@@ -1064,12 +1089,12 @@ describe('ActionGroup', function () {
     });
 
     it('should show the text if it fits with buttonLabelBehavior="collapse"', function () {
-      jest.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function () {
+      jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
         if (this instanceof HTMLButtonElement) {
-          return this.hasAttribute('aria-labelledby') ? 50 : 100;
+          return this.hasAttribute('aria-labelledby') ? {width: 50, height: 0, top: 0, left: 0, bottom: 0, right: 0} : {width: 100, height: 0, top: 0, left: 0, bottom: 0, right: 0};
         }
 
-        return 300;
+        return {width: 300, height: 0, top: 0, left: 0, bottom: 0, right: 0};
       });
 
       let tree = render(
@@ -1095,12 +1120,12 @@ describe('ActionGroup', function () {
     });
 
     it('should hide the text if it does not fit with buttonLabelBehavior="collapse"', function () {
-      jest.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function () {
+      jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
         if (this instanceof HTMLButtonElement) {
-          return this.hasAttribute('aria-labelledby') ? 50 : 100;
+          return this.hasAttribute('aria-labelledby') ? {width: 50, height: 0, top: 0, left: 0, bottom: 0, right: 0} : {width: 100, height: 0, top: 0, left: 0, bottom: 0, right: 0};
         }
 
-        return 150;
+        return {width: 150, height: 0, top: 0, left: 0, bottom: 0, right: 0};
       });
 
       let tree = render(

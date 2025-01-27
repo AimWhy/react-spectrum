@@ -70,19 +70,41 @@ import {
   Well,
   DialogContainer,
   Avatar,
-} from "@adobe/react-spectrum";
-import Edit from "@spectrum-icons/workflow/Edit";
-import NotFound from "@spectrum-icons/illustrations/NotFound";
-import Section from "../components/Section";
-import {
+  TagGroup,
+  InlineAlert,
   ColorArea,
   ColorField,
   ColorSlider,
   ColorWheel,
-} from "@react-spectrum/color";
+  ColorSwatchPicker,
+  ColorSwatch,
+  Accordion,
+  Disclosure,
+  DisclosureTitle,
+  DisclosurePanel
+} from "@adobe/react-spectrum";
+import {AutocompleteExample} from "../components/AutocompleteExample";
+import Edit from "@spectrum-icons/workflow/Edit";
+import NotFound from "@spectrum-icons/illustrations/NotFound";
+import Section from "../components/Section";
 import ReorderableListView from "../components/ReorderableListView";
-import {TagGroup} from '@react-spectrum/tag';
 import {ToastQueue} from '@react-spectrum/toast';
+import {SubmenuTrigger} from "@react-spectrum/menu";
+
+let nestedItems = [
+  {foo: 'Lvl 1 Foo 1', bar: 'Lvl 1 Bar 1', baz: 'Lvl 1 Baz 1', childRows: [
+    {foo: 'Lvl 2 Foo 1', bar: 'Lvl 2 Bar 1', baz: 'Lvl 2 Baz 1', childRows: [
+      {foo: 'Lvl 3 Foo 1', bar: 'Lvl 3 Bar 1', baz: 'Lvl 3 Baz 1'}
+    ]},
+    {foo: 'Lvl 2 Foo 2', bar: 'Lvl 2 Bar 2', baz: 'Lvl 2 Baz 2'}
+  ]}
+];
+
+let columns = [
+  {name: 'Foo', key: 'foo'},
+  {name: 'Bar', key: 'bar'},
+  {name: 'Baz', key: 'baz'}
+];
 
 export default function Home() {
   let [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -91,6 +113,7 @@ export default function Home() {
       <Head>
         <title>React Spectrum + NextJS</title>
         <meta name="description" content="React Spectrum + NextJS" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
@@ -141,16 +164,32 @@ export default function Home() {
             <ReorderableListView />
             <MenuTrigger>
               <ActionButton>Menu</ActionButton>
-              <Menu onAction={(key) => ToastQueue.positive(key)}>
+              <Menu onAction={(key) => ToastQueue.positive(key.toString())}>
                 <Item key="cut">Cut</Item>
                 <Item key="copy">Copy</Item>
                 <Item key="paste">Paste</Item>
                 <Item key="replace">Replace</Item>
+                <SubmenuTrigger>
+                  <Item key="share">Share</Item>
+                  <Menu onAction={(key) => ToastQueue.positive(key.toString())}>
+                    <Item key="copy-ink">Copy Link</Item>
+                    <SubmenuTrigger>
+                      <Item key="email">Email</Item>
+                      <Menu onAction={(key) => ToastQueue.positive(key.toString())}>
+                        <Item key="attachment">Email as Attachment</Item>
+                        <Item key="link">Email as Link</Item>
+                      </Menu>
+                    </SubmenuTrigger>
+                    <Item key="sms">SMS</Item>
+                  </Menu>
+                </SubmenuTrigger>
+                <Item key="delete">Delete</Item>
               </Menu>
             </MenuTrigger>
             <MenuTrigger>
               <ActionButton>Menu Trigger</ActionButton>
               <Menu>
+                <Item href="/foo" routerOptions={{scroll: false}}>Link to /foo</Item>
                 <Item>Cut</Item>
                 <Item>Copy</Item>
                 <Item>Paste</Item>
@@ -188,12 +227,35 @@ export default function Home() {
                 </Row>
               </TableBody>
             </TableView>
+            <TableView aria-label="example table with nested rows" UNSTABLE_allowsExpandableRows width={500} height={200} >
+              <TableHeader columns={columns}>
+                {column => <Column>{column.name}</Column>}
+              </TableHeader>
+              <TableBody items={nestedItems}>
+                {(item: any) =>
+                  (<Row key={item.foo} UNSTABLE_childItems={item.childRows}>
+                    {(key) => {
+                      return <Cell>{item[key.toString()]}</Cell>;
+                    }}
+                  </Row>)
+                }
+              </TableBody>
+            </TableView>
+            <AutocompleteExample />
           </Section>
 
           <Section title="Color">
-            <ColorArea defaultValue="#7f0000" />
             <ColorField label="Primary Color" />
+            <ColorSwatchPicker>
+              <ColorSwatch color="#A00" />
+              <ColorSwatch color="#f80" />
+              <ColorSwatch color="#080" />
+              <ColorSwatch color="#08f" />
+              <ColorSwatch color="#088" />
+              <ColorSwatch color="#008" />
+            </ColorSwatchPicker>
             <ColorSlider defaultValue="#7f0000" channel="red" />
+            <ColorArea defaultValue="#7f0000" />
             <ColorWheel defaultValue="hsl(30, 100%, 50%)" />
           </Section>
 
@@ -238,15 +300,13 @@ export default function Home() {
               <Item key="march 2020 assets">March 2020 Assets</Item>
             </Breadcrumbs>
 
-            <Link>
-              <a
-                href="https://www.imdb.com/title/tt6348138/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                The missing link.
-              </a>
+            <Link
+              href="https://www.imdb.com/title/tt6348138/"
+              target="_blank"
+              rel="noreferrer">
+              The missing link.
             </Link>
+            <Link href="/foo">Foo</Link>
 
             <Tabs aria-label="History of Ancient Rome">
               <TabList>
@@ -262,6 +322,34 @@ export default function Home() {
                 <Item key="Emp">Alea jacta est.</Item>
               </TabPanels>
             </Tabs>
+
+            <h3>Accordion</h3>
+            <Accordion>
+              <Disclosure id="files">
+                <DisclosureTitle>
+                  Files
+                </DisclosureTitle>
+                <DisclosurePanel>
+                  <p>Files content</p>
+                </DisclosurePanel>
+              </Disclosure>
+              <Disclosure id="people">
+                <DisclosureTitle>
+                  People
+                </DisclosureTitle>
+                <DisclosurePanel>
+                  <p>People content</p>
+                </DisclosurePanel>
+              </Disclosure>
+            </Accordion>
+
+            <h3>Disclosure</h3>
+            <Disclosure>
+              <DisclosureTitle>System Requirements</DisclosureTitle>
+              <DisclosurePanel>
+                <p>Details about system requirements here.</p>
+              </DisclosurePanel>
+            </Disclosure>
           </Section>
 
           <Section title="Overlays">
@@ -390,6 +478,10 @@ export default function Home() {
               <Item>Gaming</Item>
               <Item>Shopping</Item>
             </TagGroup>
+            <InlineAlert>
+              <Heading>Payment Information</Heading>
+              <Content>Enter your billing address, shipping address, and payment method to complete your purchase.</Content>
+            </InlineAlert>
           </Section>
 
           <Section title="Content">

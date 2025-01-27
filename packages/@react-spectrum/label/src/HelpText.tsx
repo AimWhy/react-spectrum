@@ -12,29 +12,35 @@
 
 import AlertMedium from '@spectrum-icons/ui/AlertMedium';
 import {classNames, useDOMRef, useStyleProps} from '@react-spectrum/utils';
-import {DOMRef, SpectrumHelpTextProps, StyleProps} from '@react-types/shared';
-import React, {HTMLAttributes} from 'react';
+import {DOMRef, SpectrumFieldValidation, SpectrumHelpTextProps, StyleProps, Validation} from '@react-types/shared';
+import React, {HTMLAttributes, ReactNode} from 'react';
 import styles from '@adobe/spectrum-css-temp/components/helptext/vars.css';
 
-interface HelpTextProps extends SpectrumHelpTextProps, StyleProps {
+interface HelpTextProps extends Omit<SpectrumHelpTextProps, 'errorMessage'>, Omit<Validation<any>, 'validationState'>, SpectrumFieldValidation<any>, StyleProps {
   /** Props for the help text description element. */
   descriptionProps?: HTMLAttributes<HTMLElement>,
   /** Props for the help text error message element. */
-  errorMessageProps?: HTMLAttributes<HTMLElement>
+  errorMessageProps?: HTMLAttributes<HTMLElement>,
+  /** An error message for the field. */
+  errorMessage?: ReactNode
 }
 
-function HelpText(props: HelpTextProps, ref: DOMRef<HTMLDivElement>) {
+/**
+ * Help text provides either an informative description or an error message that gives more context about what a user needs to input. It's commonly used in forms.
+ */
+export const HelpText = React.forwardRef(function HelpText(props: HelpTextProps, ref: DOMRef<HTMLDivElement>) {
   let {
     description,
     errorMessage,
     validationState,
+    isInvalid,
     isDisabled,
     showErrorIcon,
     descriptionProps,
     errorMessageProps
   } = props;
   let domRef = useDOMRef(ref);
-  let isErrorMessage = errorMessage && validationState === 'invalid';
+  let isErrorMessage = errorMessage && (isInvalid || validationState === 'invalid');
   let {styleProps} = useStyleProps(props);
 
   return (
@@ -62,10 +68,4 @@ function HelpText(props: HelpTextProps, ref: DOMRef<HTMLDivElement>) {
       )}
     </div>
   );
-}
-
-/**
- * Help text provides either an informative description or an error message that gives more context about what a user needs to input. It's commonly used in forms.
- */
-const _HelpText = React.forwardRef(HelpText);
-export {_HelpText as HelpText};
+});

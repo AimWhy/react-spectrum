@@ -10,12 +10,14 @@
  * governing permissions and limitations under the License.
  */
 
-import {Key} from 'react';
+import {Key} from '@react-types/shared';
 import type {ListState} from '@react-stately/list';
 
 interface ListMapShared {
   id: string,
-  onAction: (key: Key) => void
+  onAction?: (key: Key) => void,
+  linkBehavior?: 'action' | 'selection' | 'override',
+  keyboardNavigationBehavior: 'arrow' | 'tab'
 }
 
 // Used to share:
@@ -23,7 +25,7 @@ interface ListMapShared {
 export const listMap = new WeakMap<ListState<unknown>, ListMapShared>();
 
 export function getRowId<T>(state: ListState<T>, key: Key) {
-  let {id} = listMap.get(state);
+  let {id} = listMap.get(state) ?? {};
   if (!id) {
     throw new Error('Unknown list');
   }

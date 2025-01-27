@@ -9,7 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import {chain, useId} from '@react-aria/utils';
+import {chain, mergeProps, useId} from '@react-aria/utils';
 import {classNames} from '@react-spectrum/utils';
 import dndStyles from './dnd.css';
 import {DragPreview} from '../src';
@@ -17,7 +17,6 @@ import {FocusRing} from '@react-aria/focus';
 import Folder from '@spectrum-icons/workflow/Folder';
 import {GridCollection, useGridState} from '@react-stately/grid';
 import {Item} from '@react-stately/collections';
-import {mergeProps} from '@react-aria/utils';
 import React, {useRef} from 'react';
 import ShowMenu from '@spectrum-icons/workflow/ShowMenu';
 import {useButton} from '@react-aria/button';
@@ -26,6 +25,12 @@ import {useDraggableCollectionState} from '@react-stately/dnd';
 import {useGrid, useGridCell, useGridRow} from '@react-aria/grid';
 import {useListData} from '@react-stately/data';
 import {useListState} from '@react-stately/list';
+
+interface ItemValue {
+  id: string,
+  type: string,
+  text: string
+}
 
 export function DraggableCollectionExample(props) {
   let list = useListData({
@@ -56,10 +61,10 @@ export function DraggableCollectionExample(props) {
 
 function DraggableCollection(props) {
   let ref = React.useRef<HTMLDivElement>(null);
-  let state = useListState(props);
+  let state = useListState<ItemValue>(props);
   let gridState = useGridState({
     selectionMode: 'multiple',
-    collection: new GridCollection({
+    collection: React.useMemo(() => new GridCollection<ItemValue>({
       columnCount: 1,
       items: [...state.collection].map(item => ({
         ...item,
@@ -75,7 +80,7 @@ function DraggableCollection(props) {
           childNodes: []
         }]
       }))
-    })
+    }), [state.collection])
   });
 
   let preview = useRef(null);
@@ -84,14 +89,13 @@ function DraggableCollection(props) {
     selectionManager: gridState.selectionManager,
     getItems(keys) {
       return [...keys].map(key => {
-        let item = gridState.collection.getItem(key);
+        let item = gridState.collection.getItem(key)!;
 
         return {
-          // @ts-ignore
-          [item.value.type]: item.textValue,
+          [item.value!.type]: item.textValue,
           'text/plain': item.textValue
         };
-      });
+      }).filter(item => item != null);
     },
     preview,
     onDragStart: props.onDragStart,
@@ -123,13 +127,13 @@ function DraggableCollection(props) {
       ))}
       <DragPreview ref={preview}>
         {() => {
-          let item = state.collection.getItem(dragState.draggedKey);
+          let item = dragState.draggedKey == null ? null : state.collection.getItem(dragState.draggedKey);
           return (
             <div className={classNames(dndStyles, 'draggable', 'is-drag-preview', {'is-dragging-multiple': dragState.draggingKeys.size > 1})}>
               <div className={classNames(dndStyles, 'drag-handle')}>
                 <ShowMenu size="XS" />
               </div>
-              <span>{item.rendered}</span>
+              {item && <span>{item.rendered}</span>}
               {dragState.draggingKeys.size > 1 &&
                 <div className={classNames(dndStyles, 'badge')}>{dragState.draggingKeys.size}</div>
               }
@@ -142,8 +146,8 @@ function DraggableCollection(props) {
 }
 
 function DraggableCollectionItem({item, state, dragState}) {
-  let rowRef = React.useRef();
-  let cellRef = React.useRef();
+  let rowRef = React.useRef<HTMLDivElement | null>(null);
+  let cellRef = React.useRef<HTMLDivElement | null>(null);
   let cellNode = [...item.childNodes][0];
   let isSelected = state.selectionManager.isSelected(item.key);
 
@@ -156,7 +160,7 @@ function DraggableCollectionItem({item, state, dragState}) {
 
   let {dragProps, dragButtonProps} = useDraggableItem({key: item.key, hasDragButton: true}, dragState);
 
-  let buttonRef = React.useRef();
+  let buttonRef = React.useRef<HTMLDivElement | null>(null);
   let {buttonProps} = useButton({
     ...dragButtonProps,
     elementType: 'div'

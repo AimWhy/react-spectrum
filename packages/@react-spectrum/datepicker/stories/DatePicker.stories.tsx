@@ -22,6 +22,7 @@ import {DateValue} from '@react-types/calendar';
 import {Flex} from '@react-spectrum/layout';
 import {Heading} from '@react-spectrum/text';
 import {Item, Picker, Section} from '@react-spectrum/picker';
+import {Key} from '@react-types/shared';
 import {Provider} from '@react-spectrum/provider';
 import React from 'react';
 import {useLocale} from '@react-aria/i18n';
@@ -121,6 +122,9 @@ export default {
     hideTimeZone: {
       control: 'boolean'
     },
+    shouldForceLeadingZeros: {
+      control: 'boolean'
+    },
     isDisabled: {
       control: 'boolean'
     },
@@ -178,6 +182,10 @@ export default {
     },
     isOpen: {
       control: 'boolean'
+    },
+    firstDayOfWeek: {
+      control: 'select',
+      options: [undefined, 'sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
     }
   }
 } as ComponentMeta<typeof DatePicker>;
@@ -324,16 +332,16 @@ const calendars = [
 
 function Example(props) {
   let [locale, setLocale] = React.useState('');
-  let [calendar, setCalendar] = React.useState<React.Key>(calendars[0].key);
+  let [calendar, setCalendar] = React.useState<Key>(calendars[0].key);
   let {locale: defaultLocale} = useLocale();
 
   let pref = preferences.find(p => p.locale === locale);
-  let preferredCalendars = React.useMemo(() => pref ? pref.ordering.split(' ').map(p => calendars.find(c => c.key === p)).filter(Boolean) : [calendars[0]], [pref]);
+  let preferredCalendars = React.useMemo(() => pref ? pref.ordering.split(' ').map(p => calendars.find(c => c.key === p)).filter(v => v != null) : [calendars[0]], [pref]);
   let otherCalendars = React.useMemo(() => calendars.filter(c => !preferredCalendars.some(p => p.key === c.key)), [preferredCalendars]);
 
   let updateLocale = locale => {
     setLocale(locale);
-    let pref = preferences.find(p => p.locale === locale);
+    let pref = preferences.find(p => p.locale === locale)!;
     setCalendar(pref.ordering.split(' ')[0]);
   };
 
@@ -360,7 +368,7 @@ function Example(props) {
 }
 
 function ControlledExample(props) {
-  let [value, setValue] = React.useState(null);
+  let [value, setValue] = React.useState(props.value);
 
   return (
     <Flex direction="column" alignItems="center" gap="size-150">

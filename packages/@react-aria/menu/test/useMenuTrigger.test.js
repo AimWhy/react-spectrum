@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import {renderHook} from '@react-spectrum/test-utils';
+import {renderHook} from '@react-spectrum/test-utils-internal';
 import {useMenuTrigger} from '../';
 
 describe('useMenuTrigger', function () {
@@ -28,9 +28,9 @@ describe('useMenuTrigger', function () {
   beforeEach(() => {
     state.isOpen = false;
     state.setOpen = setOpen;
-    state.toggle = (focusStrategy) => {
+    state.open = (focusStrategy) => {
       state.setFocusStrategy(focusStrategy);
-      state.setOpen(!state.isOpen);
+      state.setOpen(true);
     };
     state.focusStrategy = 'first';
     state.setFocusStrategy = setFocusStrategy;
@@ -77,7 +77,7 @@ describe('useMenuTrigger', function () {
 
     let {menuTriggerProps} = renderMenuTriggerHook(props, state);
     expect(typeof menuTriggerProps.onPressStart).toBe('function');
-    menuTriggerProps.onPressStart({pointerType: 'mouse'});
+    menuTriggerProps.onPressStart({pointerType: 'mouse', target: document.createElement('button')});
     expect(setOpen).toHaveBeenCalledTimes(1);
     expect(setOpen).toHaveBeenCalledWith(!state.isOpen);
     expect(setFocusStrategy).toHaveBeenCalledTimes(1);

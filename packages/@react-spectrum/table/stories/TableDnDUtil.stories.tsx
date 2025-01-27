@@ -12,12 +12,11 @@
 
 import {action} from '@storybook/addon-actions';
 import {ComponentMeta} from '@storybook/react';
-import defaultConfig from './Table.stories';
+import defaultConfig, {TableStory} from './Table.stories';
 import {DragBetweenTablesComplex, DragBetweenTablesOverride, DragExampleUtilHandlers, FinderDropUtilHandlers, InsertExampleUtilHandlers, ItemDropExampleUtilHandlers, ReorderExampleUtilHandlers, RootDropExampleUtilHandlers} from './TableDnDUtilExamples';
-import {Droppable} from '@react-aria/dnd/stories/dnd.stories';
+import {Droppable} from '../../../@react-aria/dnd/stories/dnd.stories';
 import {Flex} from '@react-spectrum/layout';
 import React from 'react';
-import {TableStory} from './Table.stories';
 import {TableView} from '..';
 
 export default {
@@ -25,6 +24,7 @@ export default {
   title: 'TableView/Drag and Drop/Util Handlers'
 } as ComponentMeta<typeof TableView>;
 
+// Known accessibility issue that will be caught by aXe: https://github.com/adobe/react-spectrum/wiki/Known-accessibility-false-positives#tableview
 export const DragOutOfTable: TableStory = {
   args: {
     disabledKeys: ['2']

@@ -64,11 +64,10 @@ const GROUPS = {
     'textAlign',
     'verticalAlign',
     'lineHeight',
-    'letterSpacing',
-    'color'
+    'letterSpacing'
   ],
   Accessibility: [
-    'role', 'id', 'tabIndex', 'excludeFromTabOrder', /^aria-/
+    'role', 'id', 'tabIndex', 'excludeFromTabOrder', 'preventFocusOnPress', /^aria-/
   ],
   Advanced: [
     'UNSAFE_className', 'UNSAFE_style'
@@ -81,14 +80,14 @@ export function PropTable({component, links, style}) {
   return (
     <div style={style}>
       <TypeContext.Provider value={links}>
-        <InterfaceType properties={ungrouped} showRequired showDefault isComponent name={component.name} />
+        <InterfaceType properties={ungrouped} showRequired isComponent name={component.name} />
         {Object.keys(groups).map((group, i) => (
           <details key={i}>
             <summary className={typographyStyles['spectrum-Heading4']}>
               <ChevronRight size="S" />
               {group}
             </summary>
-            <InterfaceType properties={groups[group]} showRequired showDefault isComponent name={component.name} />
+            <InterfaceType properties={groups[group]} showRequired isComponent name={component.name} />
           </details>
         ))}
       </TypeContext.Provider>
@@ -117,6 +116,10 @@ function groupProps(props) {
       }
 
       if (props[propName]) {
+        if (propName === 'id' && props[propName].value.type !== 'string') {
+          continue;
+        }
+
         groupProps[propName] = props[propName];
         delete props[propName];
       }

@@ -11,29 +11,32 @@
  */
 
 import {Direction} from '@react-types/shared';
-import {LayoutInfo, ReusableView} from '@react-stately/virtualizer';
-import React, {CSSProperties, useRef} from 'react';
+import {LayoutInfo} from '@react-stately/virtualizer';
+import React, {CSSProperties, ReactNode, useRef} from 'react';
 import {useLocale} from '@react-aria/i18n';
-import {useVirtualizerItem} from './useVirtualizerItem';
+import {useVirtualizerItem, VirtualizerItemOptions} from './useVirtualizerItem';
 
-interface VirtualizerItemProps<T extends object, V> {
-  reusableView: ReusableView<T, V>,
-  parent?: ReusableView<T, V>,
-  className?: string
+interface VirtualizerItemProps extends Omit<VirtualizerItemOptions, 'ref'> {
+  layoutInfo: LayoutInfo,
+  parent?: LayoutInfo | null,
+  style?: CSSProperties,
+  className?: string,
+  children: ReactNode
 }
 
-export function VirtualizerItem<T extends object, V>(props: VirtualizerItemProps<T, V>) {
-  let {className, reusableView, parent} = props;
+export function VirtualizerItem(props: VirtualizerItemProps) {
+  let {style, className, layoutInfo, virtualizer, parent, children} = props;
   let {direction} = useLocale();
-  let ref = useRef();
+  let ref = useRef<HTMLDivElement | null>(null);
   useVirtualizerItem({
-    reusableView,
+    layoutInfo,
+    virtualizer,
     ref
   });
 
   return (
-    <div role="presentation" ref={ref} className={className} style={layoutInfoToStyle(reusableView.layoutInfo, direction, parent && parent.layoutInfo)}>
-      {reusableView.rendered}
+    <div role="presentation" ref={ref} className={className} style={{...layoutInfoToStyle(layoutInfo, direction, parent), ...style}}>
+      {children}
     </div>
   );
 }
@@ -55,23 +58,34 @@ export function layoutInfoToStyle(layoutInfo: LayoutInfo, dir: Direction, parent
     }
   }
 
+  let rectStyles: Record<string, number | undefined> = {
+    // TODO: For layoutInfos that are sticky that have parents with overflow visible, their "top" will be relative to the to the nearest scrolling container
+    // which WON'T be the parent since the parent has overflow visible. This means we shouldn't offset the height by the parent's position
+    // Not 100% about this change here since it is quite ambigious what the scrolling container maybe and how its top is positioned with respect to the
+    // calculated layoutInfo.y here
+    top: layoutInfo.rect.y - (parent && !(parent.allowOverflow && layoutInfo.isSticky) ? parent.rect.y : 0),
+    [xProperty]: layoutInfo.rect.x - (parent && !(parent.allowOverflow && layoutInfo.isSticky) ? parent.rect.x : 0),
+    width: layoutInfo.rect.width,
+    height: layoutInfo.rect.height
+  };
+
+  // Get rid of any non finite values since they aren't valid css values
+  Object.entries(rectStyles).forEach(([key, value]) => {
+    if (!Number.isFinite(value)) {
+      rectStyles[key] = undefined;
+    }
+  });
+
   let style: CSSProperties = {
     position: layoutInfo.isSticky ? 'sticky' : 'absolute',
     // Sticky elements are positioned in normal document flow. Display inline-block so that they don't push other sticky columns onto the following rows.
     display: layoutInfo.isSticky ? 'inline-block' : undefined,
     overflow: layoutInfo.allowOverflow ? 'visible' : 'hidden',
-    top: layoutInfo.rect.y - (parent ? parent.rect.y : 0),
-    [xProperty]: layoutInfo.rect.x - (parent ? parent.rect.x : 0),
-    transition: 'all',
-    WebkitTransition: 'all',
-    WebkitTransitionDuration: 'inherit',
-    transitionDuration: 'inherit',
-    width: layoutInfo.rect.width,
-    height: layoutInfo.rect.height,
     opacity: layoutInfo.opacity,
     zIndex: layoutInfo.zIndex,
-    transform: layoutInfo.transform,
-    contain: 'size layout style'
+    transform: layoutInfo.transform ?? undefined,
+    contain: 'size layout style',
+    ...rectStyles
   };
 
   cache.set(layoutInfo, style);

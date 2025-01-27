@@ -17,12 +17,17 @@ import AlignLeft from '@spectrum-icons/workflow/AlignLeft';
 import AlignRight from '@spectrum-icons/workflow/AlignRight';
 import Blower from '@spectrum-icons/workflow/Blower';
 import Book from '@spectrum-icons/workflow/Book';
+import {Content, Footer} from '@react-spectrum/view';
+import {ContextualHelpTrigger, Item, Menu, MenuTrigger, Section} from '../';
 import Copy from '@spectrum-icons/workflow/Copy';
 import Cut from '@spectrum-icons/workflow/Cut';
-import {Item, Menu, MenuTrigger, Section} from '../';
-import {Keyboard, Text} from '@react-spectrum/text';
+import {Dialog} from '@react-spectrum/dialog';
+import {Heading, Keyboard, Text} from '@react-spectrum/text';
+import {Link} from '@react-spectrum/link';
 import Paste from '@spectrum-icons/workflow/Paste';
 import React, {useState} from 'react';
+import {ToggleButton} from '@adobe/react-spectrum';
+import {TranslateMenu} from './../chromatic/MenuTriggerLanguages.stories';
 
 let iconMap = {
   AlignCenter,
@@ -81,6 +86,11 @@ let withSection = [
   ]}
 ];
 
+let withSectionManyItems = [
+  {id: 'section1', name: 'Section 1', children: Array(50).fill({name: 'Item'}).map((item, i) => ({id: i.toString(), name: `Item ${i}`}))},
+  {id: 'section2', name: 'Section 2', children: Array(50).fill({name: 'Item'}).map((item, i) => ({id: (i + 50).toString(), name: `Item ${i + 50}`}))}
+];
+
 let itemsWithFalsyId = [
   {id: 1, name: 'Animals', children: [
     {id: 0, name: 'id=0'},
@@ -98,7 +108,8 @@ let itemsWithFalsyId = [
 ];
 
 export default {
-  title: 'MenuTrigger'
+  title: 'MenuTrigger',
+  excludeStories: ['render']
 };
 
 export const DefaultMenuStatic = () =>
@@ -149,6 +160,12 @@ export const DefaultMenuWSectionGenerative = () => render(defaultMenu);
 
 DefaultMenuWSectionGenerative.story = {
   name: 'default menu w/ section (generative)'
+};
+
+export const DefaultMenuWSectionGenerativeManyItems = () => render(manyItemsMenu);
+
+DefaultMenuWSectionGenerativeManyItems.story = {
+  name: 'default menu w/ section (generative), many items per section'
 };
 
 export const DefaultMenuWTitlelessSectionsStatic = () =>
@@ -502,34 +519,34 @@ export const MenuWithSemanticElementsStatic = () => (
       <Menu onAction={action('action')}>
         <Section title="Section 1">
           <Item textValue="Copy">
-            <Copy size="S" />
+            <Copy />
             <Text>Copy</Text>
             <Keyboard>⌘C</Keyboard>
           </Item>
           <Item textValue="Cut">
-            <Cut size="S" />
+            <Cut />
             <Text>Cut</Text>
             <Keyboard>⌘X</Keyboard>
           </Item>
           <Item textValue="Paste">
-            <Paste size="S" />
+            <Paste />
             <Text>Paste</Text>
             <Keyboard>⌘V</Keyboard>
           </Item>
         </Section>
         <Section title="Section 2">
           <Item textValue="Puppy">
-            <AlignLeft size="S" />
+            <AlignLeft />
             <Text>Puppy</Text>
             <Text slot="description">Puppy description super long as well geez</Text>
           </Item>
           <Item textValue="Doggo with really really really long long long text">
-            <AlignCenter size="S" />
+            <AlignCenter />
             <Text>Doggo with really really really long long long text</Text>
             <Text slot="end">Value</Text>
           </Item>
           <Item textValue="Floof">
-            <AlignRight size="S" />
+            <AlignRight />
             <Text>Floof</Text>
           </Item>
           <Item>Basic Item</Item>
@@ -653,18 +670,25 @@ ControlledIsOpen.story = {
   name: 'controlled isOpen'
 };
 
+export const WithTranslations = () => <TranslateMenu />;
+
+WithTranslations.story = {
+  name: 'with translations',
+  parameters: {description: {data: 'Translations included for: Arabic, English, Hebrew, Japanese, Korean, Simplified Chinese, and Traditional Chinese.'}}
+};
+
 let customMenuItem = (item) => {
   let Icon = iconMap[item.icon];
   return (
     <Item childItems={item.children} textValue={item.name} key={item.name}>
-      {item.icon && <Icon size="S" />}
+      {item.icon && <Icon />}
       <Text>{item.name}</Text>
       {item.shortcut && <Keyboard>{item.shortcut}</Keyboard>}
     </Item>
   );
 };
 
-function render(menu, {isDisabled, ...props}: any = {}, menuProps = {}) {
+export function render(menu, {isDisabled, ...props}: any = {}, menuProps = {}) {
   let menuRender = React.cloneElement(menu, menuProps);
   return (
     <div style={{display: 'flex', width: 'auto', margin: '250px 0'}}>
@@ -684,6 +708,16 @@ function render(menu, {isDisabled, ...props}: any = {}, menuProps = {}) {
 
 let defaultMenu = (
   <Menu items={withSection} onAction={action('action')} disabledKeys={['Snake', 'Ross']}>
+    {(item: any) => (
+      <Section key={item.name} items={item.children} title={item.name}>
+        {(item: any) => <Item key={item.name} childItems={item.children}>{item.name}</Item>}
+      </Section>
+    )}
+  </Menu>
+);
+
+let manyItemsMenu = (
+  <Menu items={withSectionManyItems} onAction={action('action')}>
     {(item: any) => (
       <Section key={item.name} items={item.children} title={item.name}>
         {(item: any) => <Item key={item.name} childItems={item.children}>{item.name}</Item>}
@@ -712,3 +746,133 @@ function ControlledOpeningMenuTrigger() {
     </div>
   );
 }
+
+export let MenuItemUnavailable = {
+  render: () => render(
+    <Menu onAction={action('onAction')}>
+      <Item key="1">One</Item>
+      <ContextualHelpTrigger isUnavailable>
+        <Item key="foo">Two</Item>
+        <Dialog>
+          <Heading>hello</Heading>
+          <Content>Is it me you're looking for?</Content>
+        </Dialog>
+      </ContextualHelpTrigger>
+      <ContextualHelpTrigger isUnavailable>
+        <Item key="baz">Two point five</Item>
+        <Dialog>
+          <Heading>hello</Heading>
+          <Content>Is it me you're looking for?</Content>
+        </Dialog>
+      </ContextualHelpTrigger>
+      <Item key="3">Three</Item>
+      <ContextualHelpTrigger isUnavailable>
+        <Item key="bar" textValue="Four">
+          <Text>Four</Text>
+          <Text slot={'description'}>Shut the door</Text>
+        </Item>
+        <Dialog>
+          <Heading>hello</Heading>
+          <Content>Is it me you're looking for?</Content>
+          <Footer><Link>Learn more</Link></Footer>
+        </Dialog>
+      </ContextualHelpTrigger>
+      <Item key="5">Five</Item>
+    </Menu>
+  )
+};
+
+export let MenuItemUnavailableDynamic = {
+  render: () => render(
+    <Menu items={flatMenu} onAction={action('onAction')}>
+      {(item) => {
+        if (item.name === 'Kangaroo') {
+          return (
+            <ContextualHelpTrigger isUnavailable>
+              <Item key={item.name}>{item.name}</Item>
+              <Dialog>
+                <Heading>hello</Heading>
+                <Content>Is it me you're looking for?</Content>
+              </Dialog>
+            </ContextualHelpTrigger>
+          );
+        }
+        return <Item key={item.name}>{item.name}</Item>;
+      }}
+    </Menu>
+  )
+};
+
+export let MenuItemUnavailableToggling = {
+  render: () => <MenuWithUnavailableSometimes />
+};
+
+function MenuWithUnavailableSometimes(props) {
+  let [isUnavailable, setIsUnavailable] = useState(false);
+  return (
+    <>
+      <ToggleButton isSelected={isUnavailable} onChange={setIsUnavailable}>Toggle item 2</ToggleButton>
+      <div style={{display: 'flex', width: 'auto', margin: '250px 0'}}>
+        <MenuTrigger onOpenChange={action('onOpenChange')} {...props}>
+          <ActionButton>
+            Menu Button
+          </ActionButton>
+          <Menu onAction={action('onAction')}>
+            <Item key="1">One</Item>
+            <ContextualHelpTrigger isUnavailable={isUnavailable}>
+              <Item key="foo">Two</Item>
+              <Dialog>
+                <Heading>hello</Heading>
+                <Content>Is it me you're looking for?</Content>
+              </Dialog>
+            </ContextualHelpTrigger>
+            <ContextualHelpTrigger isUnavailable>
+              <Item key="baz">Two point five</Item>
+              <Dialog>
+                <Heading>hello</Heading>
+                <Content>Is it me you're looking for?</Content>
+              </Dialog>
+            </ContextualHelpTrigger>
+            <Item key="3">Three</Item>
+            <ContextualHelpTrigger isUnavailable>
+              <Item key="bar" textValue="Four">
+                <Text>Four</Text>
+                <Text slot={'description'}>Shut the door</Text>
+              </Item>
+              <Dialog>
+                <Heading>hello</Heading>
+                <Content>Is it me you're looking for?</Content>
+                <Footer><Link>Learn more</Link></Footer>
+              </Dialog>
+            </ContextualHelpTrigger>
+            <Item key="5">Five</Item>
+          </Menu>
+        </MenuTrigger>
+      </div>
+      <input />
+    </>
+  );
+}
+
+export const MenuWithLinks = (props) =>
+  render(
+    <Menu {...props} onAction={action('onAction')}>
+      <Item href="https://adobe.com">Adobe</Item>
+      <Item href="https://google.com">Google</Item>
+      <Item href="https://apple.com">Apple</Item>
+    </Menu>
+  );
+
+MenuWithLinks.story = {
+  args: {
+    selectionMode: 'none'
+  },
+  argTypes: {
+    selectionMode: {
+      control: {
+        type: 'inline-radio',
+        options: ['none', 'single', 'multiple']
+      }
+    }
+  }
+};

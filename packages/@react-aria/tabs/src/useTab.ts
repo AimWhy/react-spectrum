@@ -11,9 +11,9 @@
  */
 
 import {AriaTabProps} from '@react-types/tabs';
-import {DOMAttributes, FocusableElement} from '@react-types/shared';
+import {DOMAttributes, FocusableElement, RefObject} from '@react-types/shared';
+import {filterDOMProps, mergeProps, useLinkProps} from '@react-aria/utils';
 import {generateId} from './utils';
-import {RefObject} from 'react';
 import {TabListState} from '@react-stately/tabs';
 import {useSelectableItem} from '@react-aria/selection';
 
@@ -35,36 +35,41 @@ export interface TabAria {
 export function useTab<T>(
   props: AriaTabProps,
   state: TabListState<T>,
-  ref: RefObject<FocusableElement>
+  ref: RefObject<FocusableElement | null>
 ): TabAria {
   let {key, isDisabled: propsDisabled, shouldSelectOnPressUp} = props;
   let {selectionManager: manager, selectedKey} = state;
 
   let isSelected = key === selectedKey;
 
-  let isDisabled = propsDisabled || state.isDisabled || state.disabledKeys.has(key);
+  let isDisabled = propsDisabled || state.isDisabled || state.selectionManager.isDisabled(key);
   let {itemProps, isPressed} = useSelectableItem({
     selectionManager: manager,
     key,
     ref,
     isDisabled,
-    shouldSelectOnPressUp
+    shouldSelectOnPressUp,
+    linkBehavior: 'selection'
   });
 
   let tabId = generateId(state, key, 'tab');
   let tabPanelId = generateId(state, key, 'tabpanel');
   let {tabIndex} = itemProps;
 
+  let item = state.collection.getItem(key);
+  let domProps = filterDOMProps(item?.props, {labelable: true});
+  delete domProps.id;
+  let linkProps = useLinkProps(item?.props);
+
   return {
-    tabProps: {
-      ...itemProps,
+    tabProps: mergeProps(domProps, linkProps, itemProps, {
       id: tabId,
       'aria-selected': isSelected,
       'aria-disabled': isDisabled || undefined,
       'aria-controls': isSelected ? tabPanelId : undefined,
       tabIndex: isDisabled ? undefined : tabIndex,
       role: 'tab'
-    },
+    }),
     isSelected,
     isDisabled,
     isPressed

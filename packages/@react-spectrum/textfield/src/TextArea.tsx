@@ -12,14 +12,21 @@
 
 import {chain, useLayoutEffect} from '@react-aria/utils';
 import React, {Ref, useCallback, useRef} from 'react';
-import {SpectrumTextFieldProps, TextFieldRef} from '@react-types/textfield';
+import {SpectrumTextAreaProps, SpectrumTextFieldBaseProps, TextFieldRef} from '@react-types/textfield';
 import {TextFieldBase} from './TextFieldBase';
 import {useControlledState} from '@react-stately/utils';
+import {useFormProps} from '@react-spectrum/form';
 import {useProviderProps} from '@react-spectrum/provider';
 import {useTextField} from '@react-aria/textfield';
 
-function TextArea(props: SpectrumTextFieldProps, ref: Ref<TextFieldRef>) {
+/**
+ * TextAreas are multiline text inputs, useful for cases where users have
+ * a sizable amount of text to enter. They allow for all customizations that
+ * are available to text fields.
+ */
+export const TextArea = React.forwardRef(function TextArea(props: SpectrumTextAreaProps, ref: Ref<TextFieldRef<HTMLTextAreaElement>>) {
   props = useProviderProps(props);
+  props = useFormProps(props);
   let {
     isDisabled = false,
     isQuiet = false,
@@ -30,7 +37,7 @@ function TextArea(props: SpectrumTextFieldProps, ref: Ref<TextFieldRef>) {
   } = props;
 
   // not in stately because this is so we know when to re-measure, which is a spectrum design
-  let [inputValue, setInputValue] = useControlledState(props.value, props.defaultValue, () => {});
+  let [inputValue, setInputValue] = useControlledState(props.value, props.defaultValue ?? '', () => {});
   let inputRef = useRef<HTMLTextAreaElement>(null);
 
   let onHeightChange = useCallback(() => {
@@ -66,7 +73,7 @@ function TextArea(props: SpectrumTextFieldProps, ref: Ref<TextFieldRef>) {
     console.warn('Placeholders are deprecated due to accessibility issues. Please use help text instead. See the docs for details: https://react-spectrum.adobe.com/react-spectrum/TextArea.html#help-text');
   }
 
-  let {labelProps, inputProps, descriptionProps, errorMessageProps} = useTextField({
+  let result = useTextField({
     ...props,
     onChange: chain(onChange, setInputValue),
     inputElementType: 'textarea'
@@ -74,25 +81,14 @@ function TextArea(props: SpectrumTextFieldProps, ref: Ref<TextFieldRef>) {
 
   return (
     <TextFieldBase
-      {...otherProps}
+      {...otherProps as SpectrumTextFieldBaseProps}
       ref={ref}
       inputRef={inputRef}
-      labelProps={labelProps}
-      inputProps={inputProps}
-      descriptionProps={descriptionProps}
-      errorMessageProps={errorMessageProps}
+      {...result}
       multiLine
       isDisabled={isDisabled}
       isQuiet={isQuiet}
       isReadOnly={isReadOnly}
       isRequired={isRequired} />
   );
-}
-
-/**
- * TextAreas are multiline text inputs, useful for cases where users have
- * a sizable amount of text to enter. They allow for all customizations that
- * are available to text fields.
- */
-let _TextArea = React.forwardRef(TextArea);
-export {_TextArea as TextArea};
+});

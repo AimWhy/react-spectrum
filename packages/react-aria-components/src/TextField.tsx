@@ -11,52 +11,113 @@
  */
 
 import {AriaTextFieldProps, useTextField} from 'react-aria';
-import {ContextValue, DOMProps, Provider, SlotProps, useContextProps, useSlot} from './utils';
-import {filterDOMProps} from '@react-aria/utils';
+import {ContextValue, DOMProps, Provider, RACValidation, removeDataAttributes, RenderProps, SlotProps, useContextProps, useRenderProps, useSlot, useSlottedContext} from './utils';
+import {FieldErrorContext} from './FieldError';
+import {filterDOMProps, mergeProps} from '@react-aria/utils';
+import {FormContext} from './Form';
+import {forwardRefType} from '@react-types/shared';
 import {InputContext} from './Input';
 import {LabelContext} from './Label';
-import React, {createContext, ForwardedRef, forwardRef, useRef} from 'react';
+import React, {createContext, ForwardedRef, forwardRef, useCallback, useRef, useState} from 'react';
+import {TextAreaContext} from './TextArea';
 import {TextContext} from './Text';
 
-export interface TextFieldProps extends Omit<AriaTextFieldProps, 'label' | 'placeholder' | 'description' | 'errorMessage'>, DOMProps, SlotProps {}
+export interface TextFieldRenderProps {
+  /**
+   * Whether the text field is disabled.
+   * @selector [data-disabled]
+   */
+  isDisabled: boolean,
+  /**
+   * Whether the value is invalid.
+   * @selector [data-invalid]
+   */
+  isInvalid: boolean,
+  /**
+   * Whether the text field is read only.
+   * @selector [data-readonly]
+   */
+  isReadOnly: boolean,
+  /**
+   * Whether the text field is required.
+   * @selector [data-required]
+   */
+  isRequired: boolean
+}
+
+export interface TextFieldProps extends Omit<AriaTextFieldProps, 'label' | 'placeholder' | 'description' | 'errorMessage' | 'validationState' | 'validationBehavior'>, RACValidation, Omit<DOMProps, 'style' | 'className' | 'children'>, SlotProps, RenderProps<TextFieldRenderProps> {
+  /** Whether the value is invalid. */
+  isInvalid?: boolean
+}
 
 export const TextFieldContext = createContext<ContextValue<TextFieldProps, HTMLDivElement>>(null);
 
-function TextField(props: TextFieldProps, ref: ForwardedRef<HTMLDivElement>) {
+/**
+ * A text field allows a user to enter a plain text value with a keyboard.
+ */
+export const TextField = /*#__PURE__*/ (forwardRef as forwardRefType)(function TextField(props: TextFieldProps, ref: ForwardedRef<HTMLDivElement>) {
   [props, ref] = useContextProps(props, ref, TextFieldContext);
-  let inputRef = useRef<HTMLInputElement>(null);
+  let {validationBehavior: formValidationBehavior} = useSlottedContext(FormContext) || {};
+  let validationBehavior = props.validationBehavior ?? formValidationBehavior ?? 'native';
+  let inputRef = useRef(null);
+  let [inputContextProps, mergedInputRef] = useContextProps({}, inputRef, InputContext);
   let [labelRef, label] = useSlot();
-  let {labelProps, inputProps, descriptionProps, errorMessageProps} = useTextField({
+  let [inputElementType, setInputElementType] = useState('input');
+  let {labelProps, inputProps, descriptionProps, errorMessageProps, ...validation} = useTextField<any>({
+    ...removeDataAttributes(props),
+    inputElementType,
+    label,
+    validationBehavior
+  }, mergedInputRef);
+
+  // Intercept setting the input ref so we can determine what kind of element we have.
+  // useTextField uses this to determine what props to include.
+  let inputOrTextAreaRef = useCallback((el) => {
+    mergedInputRef.current = el;
+    if (el) {
+      setInputElementType(el instanceof HTMLTextAreaElement ? 'textarea' : 'input');
+    }
+  }, [mergedInputRef]);
+
+  let renderProps = useRenderProps({
     ...props,
-    label
-  }, inputRef);
+    values: {
+      isDisabled: props.isDisabled || false,
+      isInvalid: validation.isInvalid,
+      isReadOnly: props.isReadOnly || false,
+      isRequired: props.isRequired || false
+    },
+    defaultClassName: 'react-aria-TextField'
+  });
+
+  let DOMProps = filterDOMProps(props);
+  delete DOMProps.id;
 
   return (
     <div
-      {...filterDOMProps(props)}
+      {...DOMProps}
+      {...renderProps}
       ref={ref}
-      slot={props.slot}
-      className={props.className ?? 'react-aria-TextField'}
-      style={props.style}>
+      slot={props.slot || undefined}
+      data-disabled={props.isDisabled || undefined}
+      data-invalid={validation.isInvalid || undefined}
+      data-readonly={props.isReadOnly || undefined}
+      data-required={props.isRequired || undefined}>
       <Provider
         values={[
           [LabelContext, {...labelProps, ref: labelRef}],
-          [InputContext, {...inputProps, ref: inputRef}],
+          [InputContext, {...mergeProps(inputProps, inputContextProps), ref: inputOrTextAreaRef}],
+          [TextAreaContext, {...inputProps, ref: inputOrTextAreaRef}],
           [TextContext, {
             slots: {
               description: descriptionProps,
               errorMessage: errorMessageProps
             }
-          }]
+          }],
+          [FieldErrorContext, validation]
         ]}>
-        {props.children}
+        {renderProps.children}
       </Provider>
     </div>
   );
-}
-
-/**
- * A text field allows a user to enter a plain text value with a keyboard.
- */
-const _TextField = forwardRef(TextField);
-export {_TextField as TextField};
+});

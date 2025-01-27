@@ -12,9 +12,9 @@
 
 import {AriaSliderProps} from '@react-types/slider';
 import {clamp, mergeProps, useGlobalListeners} from '@react-aria/utils';
-import {DOMAttributes} from '@react-types/shared';
-import {getSliderThumbId, sliderIds} from './utils';
-import React, {LabelHTMLAttributes, OutputHTMLAttributes, RefObject, useRef} from 'react';
+import {DOMAttributes, RefObject} from '@react-types/shared';
+import {getSliderThumbId, sliderData} from './utils';
+import React, {LabelHTMLAttributes, OutputHTMLAttributes, useRef} from 'react';
 import {setInteractionModality, useMove} from '@react-aria/interactions';
 import {SliderState} from '@react-stately/slider';
 import {useLabel} from '@react-aria/label';
@@ -47,14 +47,18 @@ export interface SliderAria {
 export function useSlider<T extends number | number[]>(
   props: AriaSliderProps<T>,
   state: SliderState,
-  trackRef: RefObject<Element>
+  trackRef: RefObject<Element | null>
 ): SliderAria {
   let {labelProps, fieldProps} = useLabel(props);
 
   let isVertical = props.orientation === 'vertical';
 
   // Attach id of the label to the state so it can be accessed by useSliderThumb.
-  sliderIds.set(state, labelProps.id ?? fieldProps.id);
+  sliderData.set(state, {
+    id: (labelProps.id ?? fieldProps.id)!,
+    'aria-describedby': props['aria-describedby'],
+    'aria-details': props['aria-details']
+  });
 
   let {direction} = useLocale();
 
@@ -66,20 +70,21 @@ export function useSlider<T extends number | number[]>(
   // It is set onMouseDown/onTouchDown; see trackProps below.
   const realTimeTrackDraggingIndex = useRef<number | null>(null);
 
-  const stateRef = useRef<SliderState>(null);
-  stateRef.current = state;
   const reverseX = direction === 'rtl';
-  const currentPosition = useRef<number>(null);
+  const currentPosition = useRef<number | null>(null);
   const {moveProps} = useMove({
     onMoveStart() {
       currentPosition.current = null;
     },
     onMove({deltaX, deltaY}) {
+      if (!trackRef.current) {
+        return;
+      }
       let {height, width} = trackRef.current.getBoundingClientRect();
       let size = isVertical ? height : width;
 
-      if (currentPosition.current == null) {
-        currentPosition.current = stateRef.current.getThumbPercent(realTimeTrackDraggingIndex.current) * size;
+      if (currentPosition.current == null && realTimeTrackDraggingIndex.current != null) {
+        currentPosition.current = state.getThumbPercent(realTimeTrackDraggingIndex.current) * size;
       }
 
       let delta = isVertical ? deltaY : deltaX;
@@ -87,23 +92,23 @@ export function useSlider<T extends number | number[]>(
         delta = -delta;
       }
 
-      currentPosition.current += delta;
+      currentPosition.current! += delta;
 
       if (realTimeTrackDraggingIndex.current != null && trackRef.current) {
-        const percent = clamp(currentPosition.current / size, 0, 1);
-        stateRef.current.setThumbPercent(realTimeTrackDraggingIndex.current, percent);
+        const percent = clamp(currentPosition.current! / size, 0, 1);
+        state.setThumbPercent(realTimeTrackDraggingIndex.current, percent);
       }
     },
     onMoveEnd() {
       if (realTimeTrackDraggingIndex.current != null) {
-        stateRef.current.setThumbDragging(realTimeTrackDraggingIndex.current, false);
+        state.setThumbDragging(realTimeTrackDraggingIndex.current, false);
         realTimeTrackDraggingIndex.current = null;
       }
     }
   });
 
   let currentPointer = useRef<number | null | undefined>(undefined);
-  let onDownTrack = (e: React.UIEvent, id: number, clientX: number, clientY: number) => {
+  let onDownTrack = (e: React.UIEvent, id: number | undefined, clientX: number, clientY: number) => {
     // We only trigger track-dragging if the user clicks on the track itself and nothing is currently being dragged.
     if (trackRef.current && !props.isDisabled && state.values.every((_, i) => !state.isThumbDragging(i))) {
       let {height, width, top, left} = trackRef.current.getBoundingClientRect();
@@ -145,7 +150,7 @@ export function useSlider<T extends number | number[]>(
         state.setFocusedThumb(closestThumb);
         currentPointer.current = id;
 
-        state.setThumbDragging(realTimeTrackDraggingIndex.current, true);
+        state.setThumbDragging(realTimeTrackDraggingIndex.current!, true);
         state.setThumbValue(closestThumb, value);
 
         addGlobalListener(window, 'mouseup', onUpTrack, false);
