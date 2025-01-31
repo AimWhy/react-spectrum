@@ -14,6 +14,7 @@ import {action} from '@storybook/addon-actions';
 import {ActionButton, Button} from '@react-spectrum/button';
 import Add from '@spectrum-icons/workflow/Add';
 import Alert from '@spectrum-icons/workflow/Alert';
+import {Avatar} from '@react-spectrum/avatar';
 import Bell from '@spectrum-icons/workflow/Bell';
 import {ButtonGroup} from '@react-spectrum/buttongroup';
 import {chain} from '@react-aria/utils';
@@ -25,13 +26,12 @@ import Copy from '@spectrum-icons/workflow/Copy';
 import {Dialog, DialogTrigger} from '@react-spectrum/dialog';
 import Draw from '@spectrum-icons/workflow/Draw';
 import {Flex} from '@react-spectrum/layout';
-import {Heading} from '@react-spectrum/text';
+import {Heading, Text} from '@react-spectrum/text';
+import {Key} from '@react-types/shared';
 import {Link} from '@react-spectrum/link';
 import React, {useRef, useState} from 'react';
-import {Text} from '@react-spectrum/text';
-import {useAsyncList} from '@react-stately/data';
+import {useAsyncList, useListData, useTreeData} from '@react-stately/data';
 import {useFilter} from '@react-aria/i18n';
-import {useListData, useTreeData} from '@react-stately/data';
 
 let items = [
   {name: 'Aardvark', id: '1'},
@@ -54,7 +54,7 @@ let withSection = [
 
 let lotsOfSections: any[] = [];
 for (let i = 0; i < 50; i++) {
-  let children = [];
+  let children: {name: string}[] = [];
   for (let j = 0; j < 50; j++) {
     children.push({name: `Section ${i}, Item ${j}`});
   }
@@ -184,14 +184,27 @@ export default {
       options: ['focus', 'manual']
     },
     direction: {
-      control: 'select',
+      control: 'radio',
       options: ['top', 'bottom']
+    },
+    align: {
+      control: 'radio',
+      options: ['start', 'end']
     },
     allowsCustomValue: {
       control: 'boolean'
     },
     width: {
-      control: 'text'
+      control: {
+        type: 'radio',
+        options: [null, '100px', '480px', 'size-4600']
+      }
+    },
+    menuWidth: {
+      control: {
+        type: 'radio',
+        options: [null, '100px', '480px', 'size-4600']
+      }
     }
   }
 } as ComponentMeta<typeof ComboBox>;
@@ -269,6 +282,30 @@ export const ComplexItems: ComboBoxStory = {
         <Alert />
         <Text>Report</Text>
         <Text slot="description">Report an issue/violation.</Text>
+      </Item>
+    </ComboBox>
+  )
+};
+
+export const WithAvatars: ComboBoxStory = {
+  args: {label: 'Select a user'},
+  render: (args) => (
+    <ComboBox {...args}>
+      <Item textValue="User 1">
+        <Avatar src="https://i.imgur.com/kJOwAdv.png" />
+        <Text>User 1</Text>
+      </Item>
+      <Item textValue="User 2">
+        <Avatar src="https://i.imgur.com/kJOwAdv.png" />
+        <Text>User 2</Text>
+      </Item>
+      <Item textValue="User 3">
+        <Avatar src="https://i.imgur.com/kJOwAdv.png" />
+        <Text>User 3</Text>
+      </Item>
+      <Item textValue="User 4">
+        <Avatar src="https://i.imgur.com/kJOwAdv.png" />
+        <Text>User 4</Text>
       </Item>
     </ComboBox>
   )
@@ -429,6 +466,16 @@ export const WHCM: ComboBoxStory = {
   )
 };
 
+export const Links: ComboBoxStory = {
+  render: (args) => (
+    <ComboBox {...args}>
+      <Item key="foo">Foo</Item>
+      <Item key="bar">Bar</Item>
+      <Item href="https://google.com">Google</Item>
+    </ComboBox>
+  )
+};
+
 function LoadingExamples(props) {
   return (
     <Flex gap="size-300" direction="column" >
@@ -558,17 +605,17 @@ function AsyncLoadingExampleControlledKey(props) {
   let onSelectionChange = (key) => {
     let itemText = list.getItem(key)?.name;
     list.setSelectedKeys(new Set([key]));
-    list.setFilterText(itemText);
+    list.setFilterText(itemText ?? '');
   };
 
   let onInputChange = (value) => {
     if (value === '') {
-      list.setSelectedKeys(new Set([null]));
+      list.setSelectedKeys(new Set<Key>());
     }
     list.setFilterText(value);
   };
 
-  let selectedKey = (list.selectedKeys as Set<React.Key>).values().next().value;
+  let selectedKey = (list.selectedKeys as Set<Key>).values().next().value;
   return (
     <ComboBox
       label="Star Wars Character Lookup"
@@ -604,7 +651,7 @@ function AsyncLoadingExampleControlledKeyWithReset(props) {
       let json = await res.json();
 
       let selectedText;
-      let selectedKey = (selectedKeys as Set<React.Key>).values().next().value;
+      let selectedKey = (selectedKeys as Set<Key>).values().next().value;
 
       // If selectedKey exists and combobox is performing intial load, update the input value with the selected key text
       if (!isFocused.current && selectedKey) {
@@ -626,17 +673,17 @@ function AsyncLoadingExampleControlledKeyWithReset(props) {
   let onSelectionChange = (key) => {
     let itemText = list.getItem(key)?.name;
     list.setSelectedKeys(new Set([key]));
-    list.setFilterText(itemText);
+    list.setFilterText(itemText ?? '');
   };
 
   let onInputChange = (value) => {
     if (value === '') {
-      list.setSelectedKeys(new Set([null]));
+      list.setSelectedKeys(new Set<Key>());
     }
     list.setFilterText(value);
   };
 
-  let selectedKey = (list.selectedKeys as Set<React.Key>).values().next().value;
+  let selectedKey = (list.selectedKeys as Set<Key>).values().next().value;
   return (
     <ComboBox
       label="Star Wars Character Lookup"
@@ -688,7 +735,7 @@ function AllControlledComboBox(props) {
     initialItems: withSection
   });
 
-  let onSelectionChange = (key: React.Key) => {
+  let onSelectionChange = (key: Key) => {
     setFieldState(prevState => ({
       inputValue: list.getItem(key)?.value.name ?? (props.allowsCustomValue ? prevState.inputValue : ''),
       selectedKey: key

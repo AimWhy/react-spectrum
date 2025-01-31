@@ -14,7 +14,7 @@ import {ActionButton, Button} from '@react-spectrum/button';
 import {ButtonGroup} from '@react-spectrum/buttongroup';
 import {Checkbox} from '@react-spectrum/checkbox';
 import {Content, Footer, Header} from '@react-spectrum/view';
-import {Dialog, DialogTrigger} from '../';
+import {Dialog, DialogTrigger, SpectrumDialogProps} from '../';
 import {Divider} from '@react-spectrum/divider';
 import {Flex} from '@react-spectrum/layout';
 import {Form} from '@react-spectrum/form';
@@ -127,13 +127,23 @@ WithIframe.story = {
   name: 'with iframe'
 };
 
-function render({width = 'auto', isDismissable = undefined, ...props}) {
+export const HorizontalScrolling = () => renderHorizontalScrolling({});
+
+
+type RenderProps = Omit<SpectrumDialogProps & {isDismissable?: boolean, width?: string}, 'children'>;
+
+function render(props: RenderProps) {
+  let {
+    width = 'auto',
+    isDismissable,
+    ...otherProps
+  } = props;
   return (
     <div style={{display: 'flex', width, margin: '100px 0'}}>
       <DialogTrigger isDismissable={isDismissable} defaultOpen>
         <ActionButton>Trigger</ActionButton>
         {(close) => (
-          <Dialog {...props}>
+          <Dialog {...otherProps}>
             <Heading>The Heading</Heading>
             <Header>The Header</Header>
             <Divider />
@@ -175,13 +185,18 @@ function renderIframe({width = 'auto', isDismissable = undefined, ...props}) {
   );
 }
 
-function renderHero({width = 'auto', isDismissable = undefined, ...props}) {
+function renderHero(props: RenderProps) {
+  let {
+    width = 'auto',
+    isDismissable,
+    ...otherProps
+  } = props;
   return (
     <div style={{display: 'flex', width, margin: '100px 0'}}>
       <DialogTrigger isDismissable={isDismissable} defaultOpen>
         <ActionButton>Trigger</ActionButton>
         {(close) => (
-          <Dialog {...props}>
+          <Dialog {...otherProps}>
             <Image slot="hero" alt="" src="https://i.imgur.com/Z7AzH2c.png" objectFit="cover" />
             <Heading>The Heading</Heading>
             <Header>The Header</Header>
@@ -427,6 +442,33 @@ function renderWithDividerInContent({width = 'auto', ...props}) {
           </Dialog>
         )}
       </DialogTrigger>
+    </div>
+  );
+}
+
+function renderHorizontalScrolling({width = 'auto', ...props}) {
+  return (
+    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'start', width}}>
+      {fiveParagraphs()}
+      <DialogTrigger defaultOpen>
+        <ActionButton>Trigger</ActionButton>
+        {(close) => (
+          <Dialog {...props}>
+            <Heading>The Heading</Heading>
+            <Header>The Header</Header>
+            <Divider />
+            <Content UNSAFE_style={{overflow: 'auto', touchAction: 'pan-x'}}>
+              <TextField label="Top textfield" minWidth="100vw" />
+              <p>scroll this content horizontally</p>
+            </Content>
+            <ButtonGroup>
+              <Button variant="secondary" onPress={close}>Cancel</Button>
+              <Button variant="cta" onPress={close} autoFocus>Confirm</Button>
+            </ButtonGroup>
+          </Dialog>
+        )}
+      </DialogTrigger>
+      {fiveParagraphs()}
     </div>
   );
 }

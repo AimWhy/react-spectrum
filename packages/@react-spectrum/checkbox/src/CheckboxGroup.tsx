@@ -22,27 +22,27 @@ import {useCheckboxGroup} from '@react-aria/checkbox';
 import {useCheckboxGroupState} from '@react-stately/checkbox';
 import {useFormProps} from '@react-spectrum/form';
 
-function CheckboxGroup(props: SpectrumCheckboxGroupProps, ref: DOMRef<HTMLDivElement>) {
+/**
+ * A CheckboxGroup allows users to select one or more items from a list of choices.
+ */
+export const CheckboxGroup = React.forwardRef(function CheckboxGroup(props: SpectrumCheckboxGroupProps, ref: DOMRef<HTMLDivElement>) {
   props = useProviderProps(props);
   props = useFormProps(props);
   let {
     isEmphasized,
     children,
-    orientation = 'vertical',
-    validationState
+    orientation = 'vertical'
   } = props;
   let domRef = useDOMRef(ref);
   let state = useCheckboxGroupState(props);
-  let {labelProps, groupProps, descriptionProps, errorMessageProps} = useCheckboxGroup(props, state);
+  let {groupProps, ...otherProps} = useCheckboxGroup(props, state);
 
   return (
     <Field
       {...props}
+      {...otherProps}
       ref={domRef}
       wrapperClassName={classNames(styles, 'spectrum-FieldGroup')}
-      labelProps={labelProps}
-      descriptionProps={descriptionProps}
-      errorMessageProps={errorMessageProps}
       elementType="span"
       includeNecessityIndicatorInAccessibilityName>
       <div
@@ -56,7 +56,7 @@ function CheckboxGroup(props: SpectrumCheckboxGroupProps, ref: DOMRef<HTMLDivEle
             }
           )
         }>
-        <Provider isEmphasized={isEmphasized} validationState={validationState}>
+        <Provider isEmphasized={isEmphasized}>
           <CheckboxGroupContext.Provider value={state}>
             {children}
           </CheckboxGroupContext.Provider>
@@ -64,10 +64,4 @@ function CheckboxGroup(props: SpectrumCheckboxGroupProps, ref: DOMRef<HTMLDivEle
       </div>
     </Field>
   );
-}
-
-/**
- * A CheckboxGroup allows users to select one or more items from a list of choices.
- */
-const _CheckboxGroup = React.forwardRef(CheckboxGroup);
-export {_CheckboxGroup as CheckboxGroup};
+});

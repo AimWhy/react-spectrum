@@ -10,11 +10,11 @@
  * governing permissions and limitations under the License.
  */
 
-import {AriaLabelingProps, CollectionBase, DOMAttributes, DOMProps, HelpTextProps, KeyboardDelegate, LabelableProps, MultipleSelection, SelectionBehavior} from '@react-types/shared';
+import {AriaLabelingProps, CollectionBase, DOMAttributes, DOMProps, HelpTextProps, Key, KeyboardDelegate, LabelableProps, MultipleSelection, RefObject, SelectionBehavior} from '@react-types/shared';
 import {filterDOMProps, mergeProps} from '@react-aria/utils';
-import {Key, RefObject, useEffect, useRef, useState} from 'react';
 import {ListKeyboardDelegate} from '@react-aria/selection';
 import type {ListState} from '@react-stately/list';
+import {ReactNode, useEffect, useRef, useState} from 'react';
 import {useField} from '@react-aria/label';
 import {useFocusWithin} from '@react-aria/interactions';
 import {useGridList} from '@react-aria/gridlist';
@@ -31,11 +31,13 @@ export interface TagGroupAria {
   errorMessageProps: DOMAttributes
 }
 
-export interface AriaTagGroupProps<T> extends CollectionBase<T>, MultipleSelection, DOMProps, LabelableProps, AriaLabelingProps, HelpTextProps {
+export interface AriaTagGroupProps<T> extends CollectionBase<T>, MultipleSelection, DOMProps, LabelableProps, AriaLabelingProps, Omit<HelpTextProps, 'errorMessage'> {
   /** How multiple selection should behave in the collection. */
   selectionBehavior?: SelectionBehavior,
   /** Handler that is called when a user deletes a tag.  */
-  onRemove?: (keys: Set<Key>) => void
+  onRemove?: (keys: Set<Key>) => void,
+  /** An error message for the field. */
+  errorMessage?: ReactNode
 }
 
 export interface AriaTagGroupOptions<T> extends Omit<AriaTagGroupProps<T>, 'children'> {
@@ -54,26 +56,31 @@ export const hookData = new WeakMap<ListState<any>, HookData>();
 
 /**
  * Provides the behavior and accessibility implementation for a tag group component.
- * A tag group is a focusable list of labels, categories, keywords, or other items, with support for keyboard navigation and removal.
+ * A tag group is a focusable list of labels, categories, keywords, filters, or other items, with support for keyboard navigation, selection, and removal.
  * @param props - Props to be applied to the tag group.
  * @param state - State for the tag group, as returned by `useListState`.
  * @param ref - A ref to a DOM element for the tag group.
  */
-export function useTagGroup<T>(props: AriaTagGroupOptions<T>, state: ListState<T>, ref: RefObject<HTMLElement>): TagGroupAria {
+export function useTagGroup<T>(props: AriaTagGroupOptions<T>, state: ListState<T>, ref: RefObject<HTMLElement | null>): TagGroupAria {
   let {direction} = useLocale();
   let keyboardDelegate = props.keyboardDelegate || new ListKeyboardDelegate({
     collection: state.collection,
     ref,
     orientation: 'horizontal',
     direction,
-    disabledKeys: state.disabledKeys
+    disabledKeys: state.disabledKeys,
+    disabledBehavior: state.selectionManager.disabledBehavior
   });
-  let {labelProps, fieldProps, descriptionProps, errorMessageProps} = useField(props);
+  let {labelProps, fieldProps, descriptionProps, errorMessageProps} = useField({
+    ...props,
+    labelElementType: 'span'
+  });
   let {gridProps} = useGridList({
     ...props,
     ...fieldProps,
     keyboardDelegate,
-    shouldFocusWrap: true
+    shouldFocusWrap: true,
+    linkBehavior: 'override'
   }, state, ref);
 
   let [isFocusWithin, setFocusWithin] = useState(false);
@@ -85,7 +92,7 @@ export function useTagGroup<T>(props: AriaTagGroupOptions<T>, state: ListState<T
   // If the last tag is removed, focus the container.
   let prevCount = useRef(state.collection.size);
   useEffect(() => {
-    if (prevCount.current > 0 && state.collection.size === 0 && isFocusWithin) {
+    if (ref.current && prevCount.current > 0 && state.collection.size === 0 && isFocusWithin) {
       ref.current.focus();
     }
     prevCount.current = state.collection.size;

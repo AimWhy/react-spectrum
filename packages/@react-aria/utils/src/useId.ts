@@ -15,7 +15,14 @@ import {useLayoutEffect} from './useLayoutEffect';
 import {useSSRSafeId} from '@react-aria/ssr';
 import {useValueEffect} from './';
 
-let idsUpdaterMap: Map<string, (v: string) => void> = new Map();
+// copied from SSRProvider.tsx to reduce exports, if needed again, consider sharing
+let canUseDOM = Boolean(
+  typeof window !== 'undefined' &&
+  window.document &&
+  window.document.createElement
+);
+
+let idsUpdaterMap: Map<string, Array<(v: string) => void>> = new Map();
 
 /**
  * If a default is not provided, generate an id.
@@ -31,7 +38,14 @@ export function useId(defaultId?: string): string {
     nextId.current = val;
   }, []);
 
-  idsUpdaterMap.set(res, updateValue);
+  if (canUseDOM) {
+    // TS not smart enough to know that `has` means the value exists
+    if (idsUpdaterMap.has(res) && !idsUpdaterMap.get(res)!.includes(updateValue)) {
+      idsUpdaterMap.set(res, [...idsUpdaterMap.get(res)!, updateValue]);
+    } else {
+      idsUpdaterMap.set(res, [updateValue]);
+    }
+  }
 
   useLayoutEffect(() => {
     let r = res;
@@ -62,15 +76,15 @@ export function mergeIds(idA: string, idB: string): string {
     return idA;
   }
 
-  let setIdA = idsUpdaterMap.get(idA);
-  if (setIdA) {
-    setIdA(idB);
+  let setIdsA = idsUpdaterMap.get(idA);
+  if (setIdsA) {
+    setIdsA.forEach(fn => fn(idB));
     return idB;
   }
 
-  let setIdB = idsUpdaterMap.get(idB);
-  if (setIdB) {
-    setIdB(idA);
+  let setIdsB = idsUpdaterMap.get(idB);
+  if (setIdsB) {
+    setIdsB.forEach(fn => fn(idA));
     return idA;
   }
 

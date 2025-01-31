@@ -17,7 +17,7 @@ import {Breadcrumbs, Item} from '@react-spectrum/breadcrumbs';
 import {ButtonGroup} from '@react-spectrum/buttongroup';
 import {Cell, Column, Row, SpectrumTableProps, TableBody, TableHeader, TableView} from '../';
 import {ComponentMeta, ComponentStoryObj} from '@storybook/react';
-import {Content} from '@react-spectrum/view';
+import {Content, View} from '@react-spectrum/view';
 import {ControllingResize, PokemonColumn} from './ControllingResize';
 import {CRUDExample} from './CRUDExample';
 import Delete from '@spectrum-icons/workflow/Delete';
@@ -28,20 +28,21 @@ import {Heading} from '@react-spectrum/text';
 import {HidingColumns} from './HidingColumns';
 import {HidingColumnsAllowsResizing} from './HidingColumnsAllowsResizing';
 import {IllustratedMessage} from '@react-spectrum/illustratedmessage';
+import {Key, LoadingState} from '@react-types/shared';
 import {Link} from '@react-spectrum/link';
-import {LoadingState} from '@react-types/shared';
 import NoSearchResults from '@spectrum-icons/illustrations/NoSearchResults';
+import {Picker} from '@react-spectrum/picker';
 import {Radio, RadioGroup} from '@react-spectrum/radio';
-import React, {Key, useCallback, useState} from 'react';
+import React, {useCallback, useState} from 'react';
 import {SearchField} from '@react-spectrum/searchfield';
 import {Switch} from '@react-spectrum/switch';
 import {TextField} from '@react-spectrum/textfield';
 import {useAsyncList, useListData} from '@react-stately/data';
 import {useFilter} from '@react-aria/i18n';
-import {View} from '@react-spectrum/view';
 
 export default {
   title: 'TableView',
+  excludeStories: ['columns', 'renderEmptyState', 'EmptyStateTable'],
   component: TableView,
   args: {
     onAction: action('onAction'),
@@ -116,6 +117,10 @@ export default {
     },
     disallowEmptySelection: {
       control: 'boolean'
+    },
+    disabledBehavior: {
+      control: 'select',
+      options: ['all', 'selection']
     }
   }
 } as ComponentMeta<typeof TableView>;
@@ -123,6 +128,7 @@ export default {
 export type TableStory = ComponentStoryObj<typeof TableView>;
 
 
+// Known accessibility issue that will be caught by aXe: https://github.com/adobe/react-spectrum/wiki/Known-accessibility-false-positives#tableview
 export const Static: TableStory = {
   args: {
     'aria-label': 'TableView with static contents',
@@ -153,7 +159,7 @@ export const Static: TableStory = {
   name: 'static'
 };
 
-let columns = [
+export let columns = [
   {name: 'Foo', key: 'foo'},
   {name: 'Bar', key: 'bar'},
   {name: 'Baz', key: 'baz'}
@@ -324,12 +330,14 @@ export const StaticNestedColumns: TableStory = {
     <TableView {...args}>
       <TableHeader>
         <Column key="test">Test</Column>
-        <Column title="Group 1">
-          <Column key="foo">Foo</Column>
-          <Column key="bar">Bar</Column>
-        </Column>
-        <Column title="Group 2">
-          <Column key="baz">Baz</Column>
+        <Column title="Blah">
+          <Column title="Group 1">
+            <Column key="foo">Foo</Column>
+            <Column key="bar">Bar</Column>
+          </Column>
+          <Column title="Group 2">
+            <Column key="baz">Baz</Column>
+          </Column>
         </Column>
       </TableHeader>
       <TableBody>
@@ -375,7 +383,7 @@ export const DynamicNestedColumns: TableStory = {
     <TableView {...args}>
       <TableHeader columns={nestedColumns}>
         {column =>
-          <Column childColumns={column.children}>{column.name}</Column>
+          <Column childColumns={column.children} textValue={column.name}>{column.name}</Column>
         }
       </TableHeader>
       <TableBody items={items}>
@@ -447,6 +455,17 @@ export const FocusableCells: TableStory = {
             <Cell><Link><a href="https://yahoo.com" target="_blank">Yahoo</a></Link></Cell>
             <Cell>Three</Cell>
           </Row>
+          <Row>
+            <Cell><Switch aria-label="Foo" /></Cell>
+            <Cell>
+              <Picker aria-label="Search engine" placeholder="Search with:" width={'100%'} isQuiet>
+                <Item key="Yahoo">Yahoo</Item>
+                <Item key="Google">Google</Item>
+                <Item key="DuckDuckGo">DuckDuckGo</Item>
+              </Picker>
+            </Cell>
+            <Cell>Three</Cell>
+          </Row>
         </TableBody>
       </TableView>
       <label htmlFor="focus-after">Focus after</label>
@@ -456,12 +475,22 @@ export const FocusableCells: TableStory = {
   name: 'focusable cells'
 };
 
-let manyColunns = [];
+interface ItemValue {
+  name: string,
+  key: string
+}
+
+let manyColunns: Array<ItemValue> = [];
 for (let i = 0; i < 100; i++) {
   manyColunns.push({name: 'Column ' + i, key: 'C' + i});
 }
 
-let manyRows = [];
+interface RowValue {
+  key: string,
+  [key: string]: string
+}
+
+let manyRows: Array<RowValue> = [];
 for (let i = 0; i < 1000; i++) {
   let row = {key: 'R' + i};
   for (let j = 0; j < 100; j++) {
@@ -741,7 +770,7 @@ function DeletableRowsTable(props: SpectrumTableProps<unknown>) {
     ]
   });
   let onSelectionChange = useCallback((keys) => {
-    props.onSelectionChange(keys);
+    props.onSelectionChange?.(keys);
     list.setSelectedKeys(keys);
   }, [props, list]);
 
@@ -803,7 +832,7 @@ export const IsLoading: TableStory = {
           <Column minWidth={100}>{column.name}</Column>
         }
       </TableHeader>
-      <TableBody items={[]} loadingState="loading">
+      <TableBody items={[] as Array<{foo: string}>} loadingState="loading">
         {item =>
           (<Row key={item.foo}>
             {key => <Cell>{item[key]}</Cell>}
@@ -828,7 +857,7 @@ export const IsLoadingMore: TableStory = {
           <Column minWidth={100}>{column.name}</Column>
         }
       </TableHeader>
-      <TableBody items={[]} loadingState="loadingMore">
+      <TableBody items={[] as Array<{foo: string}>} loadingState="loadingMore">
         {item =>
           (<Row key={item.foo}>
             {key => <Cell>{item[key]}</Cell>}
@@ -877,21 +906,22 @@ function renderEmptyState() {
   );
 }
 
-function EmptyStateTable(props) {
+export function EmptyStateTable(props) {
+  let {items, columns, allowsSorting, ...otherProps} = props;
   let [show, setShow] = useState(false);
   let [sortDescriptor, setSortDescriptor] = useState({});
   return (
     <Flex direction="column">
       <ActionButton width="100px" onPress={() => setShow(show => !show)}>Toggle items</ActionButton>
-      <TableView aria-label="TableView with empty state" width={700} height={400} {...props} renderEmptyState={renderEmptyState} selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor}>
-        <TableHeader columns={manyColunns}>
-          {column =>
-            <Column allowsResizing allowsSorting minWidth={100}>{column.name}</Column>
+      <TableView aria-label="TableView with empty state" width={700} height={400} renderEmptyState={renderEmptyState} selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} {...otherProps}>
+        <TableHeader columns={columns ?? manyColunns}>
+          {(column: any) =>
+            <Column allowsResizing allowsSorting={allowsSorting} minWidth={100}>{column.name}</Column>
           }
         </TableHeader>
-        <TableBody items={show ? manyRows : []}>
-          {item =>
-            (<Row key={item.foo}>
+        <TableBody items={show ? items ?? manyRows : []}>
+          {(item: any) =>
+            (<Row key={item.foo} UNSTABLE_childItems={item.childRows}>
               {key => <Cell>{item[key]}</Cell>}
             </Row>)
           }
@@ -924,7 +954,6 @@ function AsyncLoadingExample(props) {
       if (cursor) {
         url.searchParams.append('after', cursor);
       }
-
       let res = await fetch(url.toString(), {signal});
       let json = await res.json();
       return {items: json.data.children, cursor: json.data.after};
@@ -978,6 +1007,153 @@ export const AsyncLoading: TableStory = {
   render: (args) => <AsyncLoadingExample {...args} />,
   name: 'async loading'
 };
+
+async function fakeFetch() {
+  return new Promise(
+    (resolve) => {
+      setTimeout(() => resolve({json: async function () {
+        return {data: {children: [
+          {data: {id: 'foo', thumbnail: 'https://i.imgur.com/Z7AzH2c.jpg', ups: '7', title: 'cats', created: Date.now()}},
+          {data: {id: 'fooo', thumbnail: 'https://i.imgur.com/Z7AzH2c.jpg', ups: '7', title: 'cats', created: Date.now()}},
+          {data: {id: 'foooo', thumbnail: 'https://i.imgur.com/Z7AzH2c.jpg', ups: '7', title: 'cats', created: Date.now()}},
+          {data: {id: 'fooooo', thumbnail: 'https://i.imgur.com/Z7AzH2c.jpg', ups: '7', title: 'cats', created: Date.now()}},
+          {data: {id: 'foooooo', thumbnail: 'https://i.imgur.com/Z7AzH2c.jpg', ups: '7', title: 'cats', created: Date.now()}},
+          {data: {id: 'doo', thumbnail: 'https://i.imgur.com/Z7AzH2c.jpg', ups: '7', title: 'cats', created: Date.now()}},
+          {data: {id: '1', thumbnail: 'https://i.imgur.com/Z7AzH2c.jpg', ups: '7', title: 'cats', created: Date.now()}},
+          {data: {id: '2', thumbnail: 'https://i.imgur.com/Z7AzH2c.jpg', ups: '7', title: 'cats', created: Date.now()}},
+          {data: {id: '3', thumbnail: 'https://i.imgur.com/Z7AzH2c.jpg', ups: '7', title: 'cats', created: Date.now()}},
+          {data: {id: '4', thumbnail: 'https://i.imgur.com/Z7AzH2c.jpg', ups: '7', title: 'cats', created: Date.now()}},
+          {data: {id: '5', thumbnail: 'https://i.imgur.com/Z7AzH2c.jpg', ups: '7', title: 'cats', created: Date.now()}},
+          {data: {id: '6', thumbnail: 'https://i.imgur.com/Z7AzH2c.jpg', ups: '7', title: 'cats', created: Date.now()}}
+        ]}};
+      }}), 1000);
+    }
+  );
+}
+
+export const AsyncLoadingQuarryTest: TableStory = {
+  args: {
+    'aria-label': 'Top news from Reddit',
+    selectionMode: 'multiple',
+    height: 400,
+    width: '100%'
+  },
+  render: (args) => <AsyncLoadingExampleQuarryTest {...args} />,
+  name: 'async reload on sort'
+};
+
+function AsyncLoadingExampleQuarryTest(props) {
+  let [filters, setFilters] = React.useState({});
+
+  const rColumns = [
+    {
+      key: 'title',
+      label: 'Title'
+    },
+    {
+      key: 'ups',
+      label: 'Upvotes',
+      width: 200
+    },
+    {
+      key: 'created',
+      label: 'Created',
+      width: 350
+    }
+  ];
+  interface Post {
+    id: string,
+    key: string,
+    preview?: string,
+    ups: number,
+    title: string,
+    created: string,
+    url: string
+  }
+
+  let list = useAsyncList<Post>({
+    getKey: (item) => item.id,
+    async load({cursor}) {
+      const url = new URL('https://www.reddit.com/r/aww.json');
+
+      if (cursor) {
+        url.searchParams.append('after', cursor);
+      }
+
+      const res = await fakeFetch();
+      // @ts-ignore
+      const json = await res.json();
+      const items = json.data.children.map((item) => {
+        return {
+          id: item.data.id,
+          preview: item.data.thumbnail,
+          ups: item.data.ups,
+          title: item.data.title,
+          created: new Date(item.data.created * 1000).toISOString()
+        };
+      });
+      return {
+        items,
+        cursor: json.data.after,
+        total: 987
+      };
+    },
+    async sort({items, sortDescriptor}) {
+      return {
+        items: items.slice().sort((a, b) => {
+          let cmp = a[sortDescriptor.column!] < b[sortDescriptor.column!] ? -1 : 1;
+
+          if (sortDescriptor.direction === 'descending') {
+            cmp *= -1;
+          }
+
+          return cmp;
+        })
+
+      };
+    }
+  });
+
+  let reloadDeps = [filters];
+
+  useMountEffect((): void => {
+    list.reload();
+  }, reloadDeps);
+
+  return (
+    <TableView {...props} width="90vw" sortDescriptor={list.sortDescriptor} selectedKeys={list.selectedKeys} onSelectionChange={list.setSelectedKeys} onSortChange={setFilters}>
+      <TableHeader columns={rColumns}>
+        {(column) => (
+          <Column key={column.key} allowsSorting>
+            {column.label}
+          </Column>
+        )}
+      </TableHeader>
+      <TableBody items={list.items} loadingState={list.loadingState} onLoadMore={list.loadMore}>
+        {item =>
+          (<Row key={item.id}>
+            {key =>
+              key === 'title'
+                ? <Cell textValue={item.title}><Link isQuiet><a href={item.url} target="_blank">{item.title}</a></Link></Cell>
+                : <Cell>{item[key]}</Cell>
+            }
+          </Row>)
+        }
+      </TableBody>
+    </TableView>
+  );
+}
+
+function useMountEffect(fn: () => void, deps: Array<unknown>): void {
+  const mounted = React.useRef(false);
+  React.useEffect(() => {
+    if (mounted.current) {
+      fn();
+    } else {
+      mounted.current = true;
+    }
+  }, deps);
+}
 
 export const HideHeader: TableStory = {
   args: {
@@ -1384,6 +1560,7 @@ function TableWithBreadcrumbs(props) {
       </Breadcrumbs>
       <TableView
         width="400px"
+        height="300px"
         aria-label="table"
         {...props}
         selectedKeys={selection}
@@ -1801,6 +1978,7 @@ let typeAheadRows = [
   ...Array.from({length: 100}, (v, i) => ({id: i, firstname: 'Aubrey', lastname: 'Sheppard', birthday: 'May 7'})),
   {id: 101, firstname: 'John', lastname: 'Doe', birthday: 'May 7'}
 ];
+
 export const TypeaheadWithDialog: TableStory = {
   render: (args) => (
     <div style={{height: '90vh'}}>
@@ -1840,3 +2018,84 @@ export const TypeaheadWithDialog: TableStory = {
     </div>
   )
 };
+
+export const Links = (args) => {
+  return (
+    <TableView {...args} aria-label="Bookmarks table" onSelectionChange={action('onSelectionChange')}>
+      <TableHeader>
+        <Column>Name</Column>
+        <Column>URL</Column>
+        <Column>Date added</Column>
+      </TableHeader>
+      <TableBody>
+        <Row key="https://adobe.com/" href="https://adobe.com/">
+          <Cell>Adobe</Cell>
+          <Cell>https://adobe.com/</Cell>
+          <Cell>January 28, 2023</Cell>
+        </Row>
+        <Row key="https://google.com/" href="https://google.com/">
+          <Cell>Google</Cell>
+          <Cell>https://google.com/</Cell>
+          <Cell>April 5, 2023</Cell>
+        </Row>
+        <Row key="https://apple.com/" href="https://apple.com/">
+          <Cell>Apple</Cell>
+          <Cell>https://apple.com/</Cell>
+          <Cell>June 5, 2023</Cell>
+        </Row>
+        <Row key="https://nytimes.com/" href="https://nytimes.com/">
+          <Cell>New York Times</Cell>
+          <Cell>https://nytimes.com/</Cell>
+          <Cell>July 12, 2023</Cell>
+        </Row>
+      </TableBody>
+    </TableView>
+  );
+};
+
+export const ColumnHeaderFocusRingTable = {
+  render: () => <LoadingTable />,
+  name: 'column header focus after loading',
+  parameters: {
+    description: {
+      data: 'Column header should remain focused even if the table collections empties/loading state changes to loading'
+    }
+  }
+};
+
+const allItems = [
+  {key: 'sam', name: 'Sam', height: 66, birthday: 'May 3'},
+  {key: 'julia', name: 'Julia', height: 70, birthday: 'February 10'}
+];
+
+function LoadingTable() {
+  const [items, setItems] = useState(allItems);
+  const [loadingState, setLoadingState] = useState<LoadingState>('idle');
+  const onSortChange = () => {
+    setItems([]);
+    setLoadingState('loading');
+    setTimeout(() => {
+      setItems(items.length > 1 ? [...items.slice(0, 1)] : []);
+      setLoadingState('idle');
+    }, 1000);
+  };
+
+  return (
+    <TableView aria-label="Table" selectionMode="multiple" onSortChange={onSortChange} height={300}>
+      <TableHeader>
+        <Column key="name">Name</Column>
+        <Column key="height" allowsSorting>Height</Column>
+        <Column key="birthday">Birthday</Column>
+      </TableHeader>
+      <TableBody items={items} loadingState={loadingState}>
+        {item => (
+          <Row key={item.key}>
+            {column => <Cell>{item[column]}</Cell>}
+          </Row>
+        )}
+      </TableBody>
+    </TableView>
+  );
+}
+
+export {Performance} from './Performance';

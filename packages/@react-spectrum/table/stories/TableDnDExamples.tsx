@@ -3,7 +3,7 @@ import {action} from '@storybook/addon-actions';
 import {Cell, Column, Row, TableBody, TableHeader, TableView} from '../';
 import {chain} from '@react-aria/utils';
 import {Flex} from '@react-spectrum/layout';
-import {ItemDropTarget} from '@react-types/shared';
+import {ItemDropTarget, Key} from '@react-types/shared';
 import React from 'react';
 import {Text} from '@react-spectrum/text';
 import {useDragAndDrop} from '@react-spectrum/dnd';
@@ -20,7 +20,16 @@ let columns = [
   {name: 'IP Address', key: 'ip_address'}
 ];
 
-let items = [
+let columnsWithOutRowHeader = [
+  {name: 'First name', key: 'first_name'},
+  {name: 'Last name', key: 'last_name'},
+  {name: 'Email', key: 'email'},
+  {name: 'Department', key: 'department'},
+  {name: 'Job Title', key: 'job_title'},
+  {name: 'IP Address', key: 'ip_address'}
+];
+
+export let items = [
   {id: 'a', first_name: 'Vin', last_name: 'Charlet', email: 'vcharlet0@123-reg.co.uk', ip_address: '18.45.175.130', department: 'Services', job_title: 'Analog Circuit Design manager'},
   {id: 'b', first_name: 'Lexy', last_name: 'Maddison', email: 'lmaddison1@xinhuanet.com', ip_address: '238.210.151.48', department: 'Research and Development', job_title: 'Analog Circuit Design manager'},
   {id: 'c', first_name: 'Robbi', last_name: 'Persence', email: 'rpersence2@hud.gov', ip_address: '130.2.120.99', department: 'Business Development', job_title: 'Analog Circuit Design manager'},
@@ -38,7 +47,7 @@ let getAllowedDropOperationsAction = action('getAllowedDropOperationsAction');
 export function DragExample(props?) {
   let {tableViewProps, dragHookOptions} = props;
   let getItems = (keys) => [...keys].map(key => {
-    let item = items.find(item => item.id === key);
+    let item = items.find(item => item.id === key)!;
     return {
       'text/plain': `${item.first_name} ${item.last_name}`
     };
@@ -69,17 +78,51 @@ export function DragExample(props?) {
   );
 }
 
+export function DragWithoutRowHeaderExample(props?)  {
+  let {tableViewProps, dragHookOptions} = props;
+  let getItems = (keys) => [...keys].map(key => {
+    let item = items.find(item => item.id === key)!;
+    return {
+      'text/plain': `${item.first_name} ${item.last_name}`
+    };
+  });
+
+  let {dragAndDropHooks} = useDragAndDrop({
+    getItems,
+    getAllowedDropOperations() {
+      getAllowedDropOperationsAction();
+      return ['move', 'cancel'];
+    },
+    ...dragHookOptions
+  });
+
+  return (
+    <TableView aria-label="TableView with dragging enabled" selectionMode="multiple" width={400} height={300} onSelectionChange={s => onSelectionChange([...s])} dragAndDropHooks={dragAndDropHooks} {...tableViewProps}>
+      <TableHeader columns={columnsWithOutRowHeader}>
+        {column => <Column minWidth={100}>{column.name}</Column>}
+      </TableHeader>
+      <TableBody items={items}>
+        {item => (
+          <Row>
+            {key => <Cell>{item[key]}</Cell>}
+          </Row>
+        )}
+      </TableBody>
+    </TableView>
+  );
+}
+
 export function ReorderExample(props) {
   let {onDrop, onDragStart, onDragEnd, tableViewProps} = props;
   let list = useListData({
-    initialItems: items,
+    initialItems: (props.items as typeof items) || items,
     getKey: item => item.id
   });
 
   // Use a random drag type so the items can only be reordered within this table and not dragged elsewhere.
   let dragType = React.useMemo(() => `keys-${Math.random().toString(36).slice(2)}`, []);
 
-  let onMove = (keys: React.Key[], target: ItemDropTarget) => {
+  let onMove = (keys: Key[], target: ItemDropTarget) => {
     if (target.dropPosition === 'before') {
       list.moveBefore(target.key, keys);
     } else {
@@ -106,10 +149,10 @@ export function ReorderExample(props) {
     async onDrop(e) {
       onDrop(e);
       if (e.target.type !== 'root' && e.target.dropPosition !== 'on') {
-        let keys = [];
+        let keys: Key[] = [];
         for (let item of e.items) {
           if (item.kind === 'text') {
-            let key;
+            let key: Key;
             if (item.types.has(dragType)) {
               key = JSON.parse(await item.getText(dragType));
               keys.push(key);
@@ -169,26 +212,26 @@ export function DragOntoRowExample(props) {
 
   let list = useListData({
     initialItems: [
-      {id: '0', type: 'folder', name: 'Folder 1', childNodes: []},
+      {id: '0', type: 'folder', name: 'Folder 1', childNodes: [] as any[]},
       {id: '1', type: 'item', name: 'One'},
       {id: '2', type: 'item', name: 'Two'},
       {id: '3', type: 'item', name: 'Three'},
       {id: '4', type: 'item', name: 'Four'},
       {id: '5', type: 'item', name: 'Five'},
       {id: '6', type: 'item', name: 'Six'},
-      {id: '7', type: 'folder', name: 'Folder (disabled)', childNodes: []},
-      {id: '8', type: 'folder', name: 'Folder 2', childNodes: []}
+      {id: '7', type: 'folder', name: 'Folder (disabled)', childNodes: [] as any[]},
+      {id: '8', type: 'folder', name: 'Folder 2', childNodes: [] as any[]}
     ]
   });
-  let disabledKeys: React.Key[] = ['2', '7'];
+  let disabledKeys: Key[] = ['2', '7'];
 
   // Use a random drag type so the items can only be reordered within this list and not dragged elsewhere.
   let dragType = React.useMemo(() => `keys-${Math.random().toString(36).slice(2)}`, []);
 
-  let onMove = (keys: React.Key[], target: ItemDropTarget) => {
-    let folderItem = list.getItem(target.key);
+  let onMove = (keys: Key[], target: ItemDropTarget) => {
+    let folderItem = list.getItem(target.key)!;
     let draggedItems = keys.map((key) => list.getItem(key));
-    list.update(target.key, {...folderItem, childNodes: [...folderItem.childNodes, ...draggedItems]});
+    list.update(target.key, {...folderItem, childNodes: [...(folderItem.childNodes || []), ...draggedItems]});
     list.remove(...keys);
   };
 
@@ -211,10 +254,10 @@ export function DragOntoRowExample(props) {
     onDrop: async e => {
       onDropAction(e);
       if (e.target.type !== 'root' && e.target.dropPosition === 'on') {
-        let keys = [];
+        let keys: Key[] = [];
         for (let item of e.items) {
           if (item.kind === 'text') {
-            let key;
+            let key: Key;
             if (item.types.has(dragType)) {
               key = JSON.parse(await item.getText(dragType));
               keys.push(key);
@@ -252,7 +295,7 @@ export function DragOntoRowExample(props) {
             <Cell>{item.type}</Cell>
             <Cell>{item.name}</Cell>
             <Cell>
-              {item.type === 'folder' ? `${item.childNodes.length} dropped items` : '-'}
+              {item.type === 'folder' ? `${item.childNodes?.length} dropped items` : '-'}
             </Cell>
           </Row>
         )}
@@ -299,7 +342,7 @@ export function DragBetweenTablesExample(props) {
     initialItems: props.items2 || itemList2
   });
 
-  let onMove = (keys: React.Key[], target: ItemDropTarget) => {
+  let onMove = (keys: Key[], target: ItemDropTarget) => {
     let sourceList = list1.getItem(keys[0]) ? list1 : list2;
     let destinationList = list1.getItem(target.key) ? list1 : list2;
 
@@ -343,10 +386,10 @@ export function DragBetweenTablesExample(props) {
     onDrop: async e => {
       onDropAction(e);
       if (e.target.type !== 'root' && e.target.dropPosition !== 'on') {
-        let keys = [];
+        let keys: Key[] = [];
         for (let item of e.items) {
           if (item.kind === 'text') {
-            let key;
+            let key: Key;
             if (item.types.has(dragType)) {
               key = JSON.parse(await item.getText(dragType));
               keys.push(key);
@@ -424,7 +467,7 @@ export function DragBetweenTablesRootOnlyExample(props) {
     initialItems: props.items2 || itemList2
   });
 
-  let onMove = (keys: React.Key[], destinationList) => {
+  let onMove = (keys: Key[], destinationList) => {
     let sourceList = list1.getItem(keys[0]) ? list1 : list2;
 
     let items = keys.map(key => sourceList.getItem(key));
@@ -451,10 +494,10 @@ export function DragBetweenTablesRootOnlyExample(props) {
     onDrop: async e => {
       onDropAction(e);
       if (e.target.type === 'root') {
-        let keys = [];
+        let keys: Key[] = [];
         for (let item of e.items) {
           if (item.kind === 'text') {
-            let key;
+            let key: Key;
             if (item.types.has('list2')) {
               key = JSON.parse(await item.getText('list2'));
               keys.push(key);
@@ -497,10 +540,10 @@ export function DragBetweenTablesRootOnlyExample(props) {
     onDrop: async e => {
       onDropAction(e);
       if (e.target.type === 'root') {
-        let keys = [];
+        let keys: Key[] = [];
         for (let item of e.items) {
           if (item.kind === 'text') {
-            let key;
+            let key: Key;
             if (item.types.has('list1')) {
               key = JSON.parse(await item.getText('list1'));
               keys.push(key);

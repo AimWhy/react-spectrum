@@ -20,7 +20,7 @@ import {Form} from '@react-spectrum/form';
 import {Heading} from '@react-spectrum/text';
 import {Item, Picker} from '@react-spectrum/picker';
 import {NumberField} from '../src';
-import React, {useState} from 'react';
+import React, {ReactNode, useState} from 'react';
 
 export default {
   title: 'NumberField',
@@ -473,18 +473,19 @@ function NumberFieldControlledStateReset() {
   return (
     <>
       <NumberField
+        aria-label="numberfield to reset"
         value={controlledValue}
         onChange={(value) => setControlledValue(value)} />
       <Button
         variant={'primary'}
-        onPress={() => setControlledValue(null)}>
+        onPress={() => setControlledValue(NaN)}>
         Reset
       </Button>
     </>
   );
 }
 
-class ErrorBoundary extends React.Component<{}, {hasError: boolean}> {
+class ErrorBoundary extends React.Component<{children: ReactNode}, {hasError: boolean}> {
   constructor(props) {
     super(props);
     this.state = {hasError: false};

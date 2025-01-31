@@ -22,28 +22,29 @@ import {useProviderProps} from '@react-spectrum/provider';
 import {useRadioGroup} from '@react-aria/radio';
 import {useRadioGroupState} from '@react-stately/radio';
 
-function RadioGroup(props: SpectrumRadioGroupProps, ref: DOMRef<HTMLElement>) {
+/**
+ * Radio groups allow users to select a single option from a list of mutually exclusive options.
+ * All possible options are exposed up front for users to compare.
+ */
+export const RadioGroup = React.forwardRef(function RadioGroup(props: SpectrumRadioGroupProps, ref: DOMRef<HTMLElement>) {
   props = useProviderProps(props);
   props = useFormProps(props);
   let {
     isEmphasized,
-    validationState,
     children,
     orientation = 'vertical'
   } = props;
 
   let domRef = useDOMRef(ref);
   let state = useRadioGroupState(props);
-  let {radioGroupProps, labelProps, descriptionProps, errorMessageProps} = useRadioGroup(props, state);
+  let {radioGroupProps, ...otherProps} = useRadioGroup(props, state);
 
   return (
     <Field
       {...props}
+      {...otherProps}
       ref={domRef}
       wrapperClassName={classNames(styles, 'spectrum-FieldGroup')}
-      labelProps={labelProps}
-      descriptionProps={descriptionProps}
-      errorMessageProps={errorMessageProps}
       elementType="span">
       <div
         {...radioGroupProps}
@@ -59,7 +60,6 @@ function RadioGroup(props: SpectrumRadioGroupProps, ref: DOMRef<HTMLElement>) {
         <RadioContext.Provider
           value={{
             isEmphasized,
-            validationState,
             state
           }}>
           {children}
@@ -67,11 +67,4 @@ function RadioGroup(props: SpectrumRadioGroupProps, ref: DOMRef<HTMLElement>) {
       </div>
     </Field>
   );
-}
-
-/**
- * Radio groups allow users to select a single option from a list of mutually exclusive options.
- * All possible options are exposed up front for users to compare.
- */
-const _RadioGroup = React.forwardRef(RadioGroup);
-export {_RadioGroup as RadioGroup};
+});

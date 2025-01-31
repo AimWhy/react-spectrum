@@ -10,25 +10,34 @@
  * governing permissions and limitations under the License.
  */
 
-import {RefObject, useCallback} from 'react';
-import {ReusableView, Size} from '@react-stately/virtualizer';
+import {Key, RefObject} from '@react-types/shared';
+import {LayoutInfo, Size} from '@react-stately/virtualizer';
+import {useCallback} from 'react';
 import {useLayoutEffect} from '@react-aria/utils';
 
-interface VirtualizerItemOptions<T extends object, V> {
-  reusableView: ReusableView<T, V>,
-  ref: RefObject<HTMLElement>
+interface IVirtualizer {
+  updateItemSize(key: Key, size: Size): void
 }
 
-export function useVirtualizerItem<T extends object, V>(options: VirtualizerItemOptions<T, V>) {
-  let {reusableView: {layoutInfo, virtualizer}, ref} = options;
+export interface VirtualizerItemOptions {
+  layoutInfo: LayoutInfo | null,
+  virtualizer: IVirtualizer,
+  ref: RefObject<HTMLElement | null>
+}
+
+export function useVirtualizerItem(options: VirtualizerItemOptions) {
+  let {layoutInfo, virtualizer, ref} = options;
+  let key = layoutInfo?.key;
 
   let updateSize = useCallback(() => {
-    let size = getSize(ref.current);
-    virtualizer.updateItemSize(layoutInfo.key, size);
-  }, [virtualizer, layoutInfo.key, ref]);
+    if (key != null && ref.current) {
+      let size = getSize(ref.current);
+      virtualizer.updateItemSize(key, size);
+    }
+  }, [virtualizer, key, ref]);
 
   useLayoutEffect(() => {
-    if (layoutInfo.estimatedSize) {
+    if (layoutInfo?.estimatedSize) {
       updateSize();
     }
   });

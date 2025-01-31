@@ -11,17 +11,18 @@
  */
 
 import {useEffect, useState} from 'react';
+import {useIsSSR} from '@react-aria/ssr';
 
 interface ViewportSize {
   width: number,
   height: number
 }
 
-// @ts-ignore
-let visualViewport = typeof window !== 'undefined' && window.visualViewport;
+let visualViewport = typeof document !== 'undefined' && window.visualViewport;
 
 export function useViewportSize(): ViewportSize {
-  let [size, setSize] = useState(() => getViewportSize());
+  let isSSR = useIsSSR();
+  let [size, setSize] = useState(() => isSSR ? {width: 0, height: 0} : getViewportSize());
 
   useEffect(() => {
     // Use visualViewport api to track available height even on iOS virtual keyboard opening
@@ -55,7 +56,7 @@ export function useViewportSize(): ViewportSize {
 
 function getViewportSize(): ViewportSize {
   return {
-    width: visualViewport?.width || window.innerWidth,
-    height: visualViewport?.height || window.innerHeight
+    width: (visualViewport && visualViewport?.width) || window.innerWidth,
+    height: (visualViewport && visualViewport?.height) || window.innerHeight
   };
 }

@@ -1,6 +1,6 @@
 {
   "name": "@react-spectrum/datepicker",
-  "version": "3.5.1",
+  "version": "3.12.0",
   "description": "Spectrum UI components in React",
   "license": "Apache-2.0",
   "main": "dist/main.js",
@@ -36,36 +36,35 @@
     "url": "https://github.com/adobe/react-spectrum"
   },
   "dependencies": {
-    "@internationalized/date": "^3.2.0",
-    "@internationalized/number": "^3.2.0",
-    "@react-aria/datepicker": "^3.4.1",
-    "@react-aria/focus": "^3.12.1",
-    "@react-aria/i18n": "^3.7.2",
-    "@react-aria/interactions": "^3.15.1",
-    "@react-aria/utils": "^3.17.0",
-    "@react-spectrum/button": "^3.12.2",
-    "@react-spectrum/calendar": "^3.2.2",
-    "@react-spectrum/dialog": "^3.7.2",
-    "@react-spectrum/label": "^3.12.1",
-    "@react-spectrum/layout": "^3.5.2",
-    "@react-spectrum/utils": "^3.9.2",
-    "@react-spectrum/view": "^3.5.2",
-    "@react-stately/datepicker": "^3.4.1",
-    "@react-stately/utils": "^3.6.0",
-    "@react-types/datepicker": "^3.3.1",
-    "@react-types/shared": "^3.18.1",
-    "@spectrum-icons/ui": "^3.5.2",
-    "@spectrum-icons/workflow": "^4.2.1",
-    "@swc/helpers": "^0.4.14"
+    "@internationalized/date": "^3.7.0",
+    "@react-aria/datepicker": "^3.13.0",
+    "@react-aria/focus": "^3.19.1",
+    "@react-aria/i18n": "^3.12.5",
+    "@react-aria/interactions": "^3.23.0",
+    "@react-aria/utils": "^3.27.0",
+    "@react-spectrum/button": "^3.16.10",
+    "@react-spectrum/calendar": "^3.6.0",
+    "@react-spectrum/dialog": "^3.8.17",
+    "@react-spectrum/form": "^3.7.11",
+    "@react-spectrum/label": "^3.16.11",
+    "@react-spectrum/layout": "^3.6.11",
+    "@react-spectrum/utils": "^3.12.1",
+    "@react-spectrum/view": "^3.6.15",
+    "@react-stately/datepicker": "^3.12.0",
+    "@react-types/datepicker": "^3.10.0",
+    "@react-types/shared": "^3.27.0",
+    "@spectrum-icons/ui": "^3.6.12",
+    "@spectrum-icons/workflow": "^4.2.17",
+    "@swc/helpers": "^0.5.0"
   },
   "devDependencies": {
     "@adobe/spectrum-css-temp": "3.0.0-alpha.1",
-    "@react-spectrum/test-utils": "3.0.0-alpha.1"
+    "@react-spectrum/test-utils-internal": "3.0.0-alpha.1"
   },
   "peerDependencies": {
-    "react": "^16.8.0 || ^17.0.0-rc.1 || ^18.0.0",
     "@react-spectrum/provider": "^3.0.0",
-    "react-dom": "^16.8.0 || ^17.0.0-rc.1 || ^18.0.0"
+    "react": "^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1",
+    "react-dom": "^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1"
   },
   "publishConfig": {
     "access": "public"

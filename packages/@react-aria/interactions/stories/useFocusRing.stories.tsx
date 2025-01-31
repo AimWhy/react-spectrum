@@ -10,11 +10,25 @@
  * governing permissions and limitations under the License.
  */
 
+import {addWindowFocusTracking} from '../src';
 import {Cell, Column, Row, TableBody, TableHeader, TableView} from '@react-spectrum/table';
-import React, {useState} from 'react';
+import Frame from 'react-frame-component';
+import {Key} from '@react-types/shared';
+import {mergeProps} from '@react-aria/utils';
+import React, {useEffect, useRef, useState} from 'react';
 import {SearchField} from '@react-spectrum/searchfield';
+import {useButton} from '@react-aria/button';
+import {useFocusRing} from '@react-aria/focus';
 
-let manyColumns = [];
+interface IColumn {
+  name: string,
+  key: string
+}
+interface RowValue {
+  key: string
+}
+
+let manyColumns: IColumn[] = [];
 for (let i = 0; i < 100; i++) {
   manyColumns.push(
     i === 0
@@ -23,7 +37,7 @@ for (let i = 0; i < 100; i++) {
   );
 }
 
-let manyRows = [];
+let manyRows: RowValue[] = [];
 for (let i = 0; i < 1000; i++) {
   let row = {key: 'R' + i};
   for (let j = 0; j < 100; j++) {
@@ -39,7 +53,20 @@ export default {
 
 export const SearchTableview = {
   render: () => <SearchExample />,
-  name: 'search + tableview'
+  name: 'search + tableview',
+  parameters: {
+    a11y: {
+      config: {
+        // Fails due to TableView's known issue, ignoring here since it isn't pertinent to the story
+        rules: [{id: 'aria-required-children', selector: '*:not([role="grid"])'}]
+      }
+    }
+  }
+};
+
+export const IFrame = {
+  render: () => <IFrameExample />,
+  name: 'focus state in dynamic iframe'
 };
 
 function SearchExample() {
@@ -48,6 +75,7 @@ function SearchExample() {
   return (
     <div>
       <SearchField
+        aria-label="table searchfield"
         onChange={(value) => {
           const newItems = manyRows.filter((item) =>
             item['C0'].toLowerCase().includes(value.toLowerCase())
@@ -62,8 +90,8 @@ function SearchExample() {
         </TableHeader>
         <TableBody items={items}>
           {item =>
-            (<Row key={item.foo}>
-              {key => <Cell>{item[key]}</Cell>}
+            (<Row key={item.key}>
+              {(key: Key) => <Cell>{item[key]}</Cell>}
             </Row>)
           }
         </TableBody>
@@ -71,3 +99,35 @@ function SearchExample() {
     </div>
   );
 }
+
+function MyButton(props) {
+  const buttonRef = props.btnRef;
+
+  const {focusProps, isFocusVisible, isFocused} = useFocusRing();
+  let {buttonProps} = useButton(props, buttonRef);
+
+  return (
+    <button ref={buttonRef} {...mergeProps(focusProps, buttonProps)}>
+      Focus Visible: {isFocusVisible ? 'true' : 'false'} <br />
+      Focused: {isFocused ? 'true' : 'false'}
+    </button>
+  );
+}
+
+const IFrameExample = (props) => {
+  let btnRef = useRef(null);
+  useEffect(() => {
+    return addWindowFocusTracking(btnRef.current);
+  }, []);
+
+  return (
+    <>
+      <MyButton />
+      <Frame {...props}>
+        <MyButton btnRef={btnRef} />
+        <MyButton />
+        <MyButton />
+      </Frame>
+    </>
+  );
+};

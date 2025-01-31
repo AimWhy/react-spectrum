@@ -16,9 +16,9 @@ import {SyntheticEvent} from 'react';
 /**
  * This function wraps a React event handler to make stopPropagation the default, and support continuePropagation instead.
  */
-export function createEventHandler<T extends SyntheticEvent>(handler: (e: BaseEvent<T>) => void): (e: T) => void {
+export function createEventHandler<T extends SyntheticEvent>(handler?: (e: BaseEvent<T>) => void): ((e: T) => void) | undefined {
   if (!handler) {
-    return;
+    return undefined;
   }
 
   let shouldStopPropagation = true;
@@ -32,10 +32,17 @@ export function createEventHandler<T extends SyntheticEvent>(handler: (e: BaseEv
         return e.isDefaultPrevented();
       },
       stopPropagation() {
-        console.error('stopPropagation is now the default behavior for events in React Spectrum. You can use continuePropagation() to revert this behavior.');
+        if (shouldStopPropagation) {
+          console.error('stopPropagation is now the default behavior for events in React Spectrum. You can use continuePropagation() to revert this behavior.');
+        } else {
+          shouldStopPropagation = true;
+        }
       },
       continuePropagation() {
         shouldStopPropagation = false;
+      },
+      isPropagationStopped() {
+        return shouldStopPropagation;
       }
     };
 

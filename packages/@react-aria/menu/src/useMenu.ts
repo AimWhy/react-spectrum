@@ -11,9 +11,9 @@
  */
 
 import {AriaMenuProps} from '@react-types/menu';
-import {DOMAttributes, KeyboardDelegate} from '@react-types/shared';
+import {DOMAttributes, KeyboardDelegate, KeyboardEvents, RefObject} from '@react-types/shared';
 import {filterDOMProps, mergeProps} from '@react-aria/utils';
-import {Key, RefObject} from 'react';
+import {menuData} from './utils';
 import {TreeState} from '@react-stately/tree';
 import {useSelectableList} from '@react-aria/selection';
 
@@ -22,23 +22,19 @@ export interface MenuAria {
   menuProps: DOMAttributes
 }
 
-export interface AriaMenuOptions<T> extends Omit<AriaMenuProps<T>, 'children'> {
+export interface AriaMenuOptions<T> extends Omit<AriaMenuProps<T>, 'children'>, KeyboardEvents {
   /** Whether the menu uses virtual scrolling. */
   isVirtualized?: boolean,
-
   /**
    * An optional keyboard delegate implementation for type to select,
    * to override the default.
    */
-  keyboardDelegate?: KeyboardDelegate
+  keyboardDelegate?: KeyboardDelegate,
+  /**
+   * Whether the menu items should use virtual focus instead of being focused directly.
+   */
+  shouldUseVirtualFocus?: boolean
 }
-
-interface MenuData {
-  onClose?: () => void,
-  onAction?: (key: Key) => void
-}
-
-export const menuData = new WeakMap<TreeState<unknown>, MenuData>();
 
 /**
  * Provides the behavior and accessibility implementation for a menu component.
@@ -46,9 +42,11 @@ export const menuData = new WeakMap<TreeState<unknown>, MenuData>();
  * @param props - Props for the menu.
  * @param state - State for the menu, as returned by `useListState`.
  */
-export function useMenu<T>(props: AriaMenuOptions<T>, state: TreeState<T>, ref: RefObject<HTMLElement>): MenuAria {
+export function useMenu<T>(props: AriaMenuOptions<T>, state: TreeState<T>, ref: RefObject<HTMLElement | null>): MenuAria {
   let {
     shouldFocusWrap = true,
+    onKeyDown,
+    onKeyUp,
     ...otherProps
   } = props;
 
@@ -63,22 +61,24 @@ export function useMenu<T>(props: AriaMenuOptions<T>, state: TreeState<T>, ref: 
     selectionManager: state.selectionManager,
     collection: state.collection,
     disabledKeys: state.disabledKeys,
-    shouldFocusWrap
+    shouldFocusWrap,
+    linkBehavior: 'override'
   });
 
   menuData.set(state, {
     onClose: props.onClose,
-    onAction: props.onAction
+    onAction: props.onAction,
+    shouldUseVirtualFocus: props.shouldUseVirtualFocus
   });
 
   return {
-    menuProps: mergeProps(domProps, {
+    menuProps: mergeProps(domProps, {onKeyDown, onKeyUp}, {
       role: 'menu',
       ...listProps,
       onKeyDown: (e) => {
         // don't clear the menu selected keys if the user is presses escape since escape closes the menu
-        if (e.key !== 'Escape') {
-          listProps.onKeyDown(e);
+        if (e.key !== 'Escape' || props.shouldUseVirtualFocus) {
+          listProps.onKeyDown?.(e);
         }
       }
     })

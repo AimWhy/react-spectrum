@@ -14,6 +14,7 @@ import {AriaButtonProps} from '@react-types/button';
 import ChevronDownMedium from '@spectrum-icons/ui/ChevronDownMedium';
 import {
   classNames,
+  dimensionValue,
   useFocusableRef,
   useIsMobileDevice,
   useResizeObserver,
@@ -32,6 +33,7 @@ import {Popover} from '@react-spectrum/overlays';
 import {PressResponder, useHover} from '@react-aria/interactions';
 import {ProgressCircle} from '@react-spectrum/progress';
 import React, {
+  ForwardedRef,
   InputHTMLAttributes,
   ReactElement,
   RefObject,
@@ -46,13 +48,17 @@ import {TextFieldBase} from '@react-spectrum/textfield';
 import textfieldStyles from '@adobe/spectrum-css-temp/components/textfield/vars.css';
 import {useComboBox} from '@react-aria/combobox';
 import {useComboBoxState} from '@react-stately/combobox';
-import {useFilter} from '@react-aria/i18n';
+import {useFilter, useLocalizedStringFormatter} from '@react-aria/i18n';
+import {useFormProps} from '@react-spectrum/form';
 import {useLayoutEffect} from '@react-aria/utils';
-import {useLocalizedStringFormatter} from '@react-aria/i18n';
 import {useProvider, useProviderProps} from '@react-spectrum/provider';
 
-function ComboBox<T extends object>(props: SpectrumComboBoxProps<T>, ref: FocusableRef<HTMLElement>) {
+/**
+ * ComboBoxes combine a text entry with a picker menu, allowing users to filter longer lists to only the selections matching a query.
+ */
+export const ComboBox = React.forwardRef(function ComboBox<T extends object>(props: SpectrumComboBoxProps<T>, ref: FocusableRef<HTMLElement>) {
   props = useProviderProps(props);
+  props = useFormProps(props);
 
   if (props.placeholder) {
     console.warn('Placeholders are deprecated due to accessibility issues. Please use help text instead. See the docs for details: https://react-spectrum.adobe.com/react-spectrum/ComboBox.html#help-text');
@@ -65,26 +71,36 @@ function ComboBox<T extends object>(props: SpectrumComboBoxProps<T>, ref: Focusa
   } else {
     return <ComboBoxBase {...props} ref={ref} />;
   }
-}
+}) as <T>(props: SpectrumComboBoxProps<T> & {ref?: FocusableRef<HTMLElement>}) => ReactElement;
 
-const ComboBoxBase = React.forwardRef(function ComboBoxBase<T extends object>(props: SpectrumComboBoxProps<T>, ref: FocusableRef<HTMLElement>) {
+const ComboBoxBase = React.forwardRef(function ComboBoxBase(props: SpectrumComboBoxProps<any>, ref: FocusableRef<HTMLElement>) {
   let {
     menuTrigger = 'input',
     shouldFlip = true,
     direction = 'bottom',
+    align = 'start',
     isQuiet,
     loadingState,
-    onLoadMore
+    onLoadMore,
+    allowsCustomValue,
+    menuWidth: customMenuWidth,
+    name,
+    formValue = 'text'
   } = props;
+  if (allowsCustomValue) {
+    formValue = 'text';
+  }
 
-  let stringFormatter = useLocalizedStringFormatter(intlMessages);
+  let stringFormatter = useLocalizedStringFormatter(intlMessages, '@react-spectrum/combobox');
   let isAsync = loadingState != null;
-  let popoverRef = useRef<DOMRefValue<HTMLDivElement>>();
+  let popoverRef = useRef<DOMRefValue<HTMLDivElement>>(null);
   let unwrappedPopoverRef = useUnwrapDOMRef(popoverRef);
-  let buttonRef = useRef<FocusableRefValue<HTMLElement>>();
+  let buttonRef = useRef<FocusableRefValue<HTMLElement>>(null);
   let unwrappedButtonRef = useUnwrapDOMRef(buttonRef);
-  let listBoxRef = useRef();
-  let inputRef = useRef<HTMLInputElement>();
+  let listBoxRef = useRef(null);
+  let inputRef = useRef<HTMLInputElement>(null);
+  // serve as the new popover `triggerRef` instead of `unwrappedButtonRef` before for better positioning.
+  let inputGroupRef = useRef<HTMLDivElement>(null);
   let domRef = useFocusableRef(ref, inputRef);
 
   let {contains} = useFilter({sensitivity: 'base'});
@@ -95,23 +111,24 @@ const ComboBoxBase = React.forwardRef(function ComboBoxBase<T extends object>(pr
       allowsEmptyCollection: isAsync
     }
   );
-  let layout = useListBoxLayout(state);
+  let layout = useListBoxLayout();
 
-  let {buttonProps, inputProps, listBoxProps, labelProps, descriptionProps, errorMessageProps} = useComboBox(
+  let {buttonProps, inputProps, listBoxProps, labelProps, descriptionProps, errorMessageProps, isInvalid, validationErrors, validationDetails} = useComboBox(
     {
       ...props,
-      keyboardDelegate: layout,
+      layoutDelegate: layout,
       buttonRef: unwrappedButtonRef,
       popoverRef: unwrappedPopoverRef,
       listBoxRef,
       inputRef: inputRef,
-      menuTrigger
+      menuTrigger,
+      name: formValue === 'text' ? name : undefined
     },
     state
   );
 
   // Measure the width of the inputfield and the button to inform the width of the menu (below).
-  let [menuWidth, setMenuWidth] = useState(null);
+  let [menuWidth, setMenuWidth] = useState<number | undefined>(undefined);
   let {scale} = useProvider();
 
   let onResize = useCallback(() => {
@@ -129,10 +146,12 @@ const ComboBoxBase = React.forwardRef(function ComboBoxBase<T extends object>(pr
 
   useLayoutEffect(onResize, [scale, onResize]);
 
+  let width = isQuiet ? undefined : menuWidth;
   let style = {
-    width: isQuiet ? null : menuWidth,
+    width: customMenuWidth ? dimensionValue(customMenuWidth) : width,
     minWidth: isQuiet ? `calc(${menuWidth}px + calc(2 * var(--spectrum-dropdown-quiet-offset)))` : menuWidth
   };
+  let cbInputProps = {...props, children: null};
 
   return (
     <>
@@ -140,25 +159,31 @@ const ComboBoxBase = React.forwardRef(function ComboBoxBase<T extends object>(pr
         {...props}
         descriptionProps={descriptionProps}
         errorMessageProps={errorMessageProps}
+        isInvalid={isInvalid}
+        validationErrors={validationErrors}
+        validationDetails={validationDetails}
         labelProps={labelProps}
         ref={domRef}>
         <ComboBoxInput
-          {...props}
+          {...cbInputProps}
           isOpen={state.isOpen}
           loadingState={loadingState}
           inputProps={inputProps}
           inputRef={inputRef}
           triggerProps={buttonProps}
-          triggerRef={buttonRef} />
+          triggerRef={buttonRef}
+          validationState={props.validationState || (isInvalid ? 'invalid' : undefined)}
+          ref={inputGroupRef} />
       </Field>
+      {name && formValue === 'key' && <input type="hidden" name={name} value={state.selectedKey ?? ''} />}
       <Popover
         state={state}
         UNSAFE_style={style}
         UNSAFE_className={classNames(styles, 'spectrum-InputGroup-popover', {'spectrum-InputGroup-popover--quiet': isQuiet})}
         ref={popoverRef}
-        triggerRef={unwrappedButtonRef}
+        triggerRef={inputGroupRef}
         scrollRef={listBoxRef}
-        placement={`${direction} end`}
+        placement={`${direction} ${align}`}
         hideArrow
         isNonModal
         shouldFlip={shouldFlip}>
@@ -166,13 +191,14 @@ const ComboBoxBase = React.forwardRef(function ComboBoxBase<T extends object>(pr
           {...listBoxProps}
           ref={listBoxRef}
           disallowEmptySelection
-          autoFocus={state.focusStrategy}
+          autoFocus={state.focusStrategy ?? undefined}
           shouldSelectOnPressUp
           focusOnPointerEnter
           layout={layout}
           state={state}
           shouldUseVirtualFocus
-          isLoading={loadingState === 'loadingMore'}
+          isLoading={loadingState === 'loading' || loadingState === 'loadingMore'}
+          showLoadingSpinner={loadingState === 'loadingMore'}
           onLoadMore={onLoadMore}
           renderEmptyState={() => isAsync && (
             <span className={classNames(comboboxStyles, 'no-results')}>
@@ -186,15 +212,15 @@ const ComboBoxBase = React.forwardRef(function ComboBoxBase<T extends object>(pr
 
 interface ComboBoxInputProps extends SpectrumComboBoxProps<unknown> {
   inputProps: InputHTMLAttributes<HTMLInputElement>,
-  inputRef: RefObject<HTMLInputElement | HTMLTextAreaElement>,
+  inputRef: RefObject<HTMLInputElement | HTMLTextAreaElement | null>,
   triggerProps: AriaButtonProps,
-  triggerRef: RefObject<FocusableRefValue<HTMLElement>>,
+  triggerRef: RefObject<FocusableRefValue<HTMLElement> | null>,
   style?: React.CSSProperties,
   className?: string,
   isOpen?: boolean
 }
 
-const ComboBoxInput = React.forwardRef(function ComboBoxInput(props: ComboBoxInputProps, ref: RefObject<HTMLElement>) {
+const ComboBoxInput = React.forwardRef(function ComboBoxInput(props: ComboBoxInputProps, ref: ForwardedRef<HTMLElement | null>) {
   let {
     isQuiet,
     isDisabled,
@@ -211,8 +237,8 @@ const ComboBoxInput = React.forwardRef(function ComboBoxInput(props: ComboBoxInp
     menuTrigger
   } = props;
   let {hoverProps, isHovered} = useHover({});
-  let stringFormatter = useLocalizedStringFormatter(intlMessages);
-  let timeout = useRef(null);
+  let stringFormatter = useLocalizedStringFormatter(intlMessages, '@react-spectrum/combobox');
+  let timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   let [showLoading, setShowLoading] = useState(false);
 
   let loadingCircle = (
@@ -251,15 +277,26 @@ const ComboBoxInput = React.forwardRef(function ComboBoxInput(props: ComboBoxInp
     } else if (!isLoading) {
       // If loading is no longer happening, clear any timers and hide the loading circle
       setShowLoading(false);
-      clearTimeout(timeout.current);
+      if (timeout.current) {
+        clearTimeout(timeout.current);
+      }
       timeout.current = null;
     }
 
     lastInputValue.current = inputValue;
   }, [isLoading, showLoading, inputValue]);
 
+  useEffect(() => {
+    return () => {
+      if (timeout.current) {
+        clearTimeout(timeout.current);
+      }
+      timeout.current = null;
+    };
+  }, []);
+
   return (
-    <FocusRing
+    (<FocusRing
       within
       isTextInput
       focusClass={classNames(styles, 'is-focused')}
@@ -267,7 +304,7 @@ const ComboBoxInput = React.forwardRef(function ComboBoxInput(props: ComboBoxInp
       autoFocus={autoFocus}>
       <div
         {...hoverProps}
-        ref={ref as RefObject<HTMLDivElement>}
+        ref={ref as RefObject<HTMLDivElement | null>}
         style={style}
         className={
           classNames(
@@ -309,7 +346,7 @@ const ComboBoxInput = React.forwardRef(function ComboBoxInput(props: ComboBoxInp
           // loading circle should only be displayed if menu is open, if menuTrigger is "manual", or first time load (to stop circle from showing up when user selects an option)
           // TODO: add special case for completionMode: complete as well
           isLoading={showLoading && (isOpen || menuTrigger === 'manual' || loadingState === 'loading')}
-          loadingIndicator={loadingState != null && loadingCircle}
+          loadingIndicator={loadingState != null ? loadingCircle : undefined}
           disableFocusRing />
         <PressResponder preventFocusOnPress isPressed={isOpen}>
           <FieldButton
@@ -327,12 +364,6 @@ const ComboBoxInput = React.forwardRef(function ComboBoxInput(props: ComboBoxInp
           </FieldButton>
         </PressResponder>
       </div>
-    </FocusRing>
+    </FocusRing>)
   );
 });
-
-/**
- * ComboBoxes combine a text entry with a picker menu, allowing users to filter longer lists to only the selections matching a query.
- */
-const _ComboBox = React.forwardRef(ComboBox) as <T>(props: SpectrumComboBoxProps<T> & {ref?: FocusableRef<HTMLElement>}) => ReactElement;
-export {_ComboBox as ComboBox};

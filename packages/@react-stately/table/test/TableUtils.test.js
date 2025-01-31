@@ -88,7 +88,7 @@ describe('TableUtils', () => {
   describe('table column layout', () => {
     it('should generate column widths with defaults if none are provided', () => {
       let layout = new TableColumnLayout();
-      let collection = {columns: [{key: 'name', column: {props: {}}}, {key: 'type', column: {props: {}}}, {key: 'height', column: {props: {}}}, {key: 'weight', column: {props: {}}}, {key: 'level', column: {props: {}}}]};
+      let collection = {columns: [{key: 'name', props: {}}, {key: 'type', props: {}}, {key: 'height', props: {}}, {key: 'weight', props: {}}, {key: 'level', props: {}}]};
       let columns = layout.buildColumnWidths(
         1000,
         collection,
@@ -105,7 +105,7 @@ describe('TableUtils', () => {
         getDefaultWidth: () => 150,
         getDefaultMinWidth: () => 50
       });
-      let collection = {columns: [{key: 'name', column: {props: {width: '1fr'}}}, {key: 'type', column: {props: {width: '1fr'}}}, {key: 'height', column: {props: {}}}, {key: 'weight', column: {props: {}}}, {key: 'level', column: {props: {width: '5fr'}}}]};
+      let collection = {columns: [{key: 'name', props: {width: '1fr'}}, {key: 'type', props: {width: '1fr'}}, {key: 'height', props: {}}, {key: 'weight', props: {}}, {key: 'level', props: {width: '5fr'}}]};
       let columns = layout.buildColumnWidths(
         1000,
         collection,
@@ -114,16 +114,14 @@ describe('TableUtils', () => {
       expect(columns).toStrictEqual(new Map([['name', 100], ['type', 100], ['height', 150], ['weight', 150], ['level', 500]]));
 
       let resizedColumns = layout.resizeColumnWidth(
-        1000,
         collection,
-        new Map([['name', '1fr'], ['type', '1fr'], ['level', '5fr']]),
         new Map([['height', 150], ['weight', 150]]),
         'height',
         200
       );
       expect(resizedColumns).toStrictEqual(new Map([['name', 100], ['type', 100], ['height', 200], ['weight', 150], ['level', '5fr']]));
 
-      collection = {columns: [{key: 'name', column: {props: {width: 100}}}, {key: 'type', column: {props: {width: 100}}}, {key: 'height', column: {props: {}}}, {key: 'weight', column: {props: {}}}, {key: 'level', column: {props: {width: '5fr'}}}]};
+      collection = {columns: [{key: 'name', props: {width: 100}}, {key: 'type', props: {width: 100}}, {key: 'height', props: {}}, {key: 'weight', props: {}}, {key: 'level', props: {width: '5fr'}}]};
       columns = layout.buildColumnWidths(
         1000,
         collection,
@@ -132,16 +130,14 @@ describe('TableUtils', () => {
       expect(columns).toStrictEqual(new Map([['name', 100], ['type', 100], ['height', 200], ['weight', 150], ['level', 450]]));
 
       resizedColumns = layout.resizeColumnWidth(
-        1000,
         collection,
-        new Map([['name', 100], ['type', 100], ['level', '5fr']]),
         new Map([['height', 200], ['weight', 150]]),
         'type',
         50
       );
       expect(resizedColumns).toStrictEqual(new Map([['name', 100], ['type', 50], ['height', 200], ['weight', 150], ['level', '5fr']]));
 
-      collection = {columns: [{key: 'name', column: {props: {width: 100}}}, {key: 'type', column: {props: {width: 50}}}, {key: 'height', column: {props: {}}}, {key: 'weight', column: {props: {}}}, {key: 'level', column: {props: {width: '5fr'}}}]};
+      collection = {columns: [{key: 'name', props: {width: 100}}, {key: 'type', props: {width: 50}}, {key: 'height', props: {}}, {key: 'weight', props: {}}, {key: 'level', props: {width: '5fr'}}]};
       columns = layout.buildColumnWidths(
         1000,
         collection,
@@ -155,7 +151,7 @@ describe('TableUtils', () => {
         getDefaultWidth: () => 150,
         getDefaultMinWidth: () => 50
       });
-      let collection = {columns: [{key: 'name', column: {props: {width: '1fr'}}}, {key: 'type', column: {props: {width: '1fr'}}}, {key: 'height', column: {props: {}}}, {key: 'weight', column: {props: {}}}, {key: 'level', column: {props: {width: '5fr'}}}]};
+      let collection = {columns: [{key: 'name', props: {width: '1fr'}}, {key: 'type', props: {width: '1fr'}}, {key: 'height', props: {}}, {key: 'weight', props: {}}, {key: 'level', props: {width: '5fr'}}]};
       let columns = layout.buildColumnWidths(
         1000,
         collection,
@@ -164,16 +160,14 @@ describe('TableUtils', () => {
       expect(columns).toStrictEqual(new Map([['name', 100], ['type', 100], ['height', 150], ['weight', 150], ['level', 500]]));
 
       let resizedColumns = layout.resizeColumnWidth(
-        1000,
         collection,
-        new Map([['name', '1fr'], ['type', '1fr'], ['level', '5fr']]),
         new Map([['height', 150], ['weight', 150]]),
         'height',
         1000
       );
       expect(resizedColumns).toStrictEqual(new Map([['name', 100], ['type', 100], ['height', 1000], ['weight', 150], ['level', '5fr']]));
 
-      collection = {columns: [{key: 'name', column: {props: {width: 100}}}, {key: 'type', column: {props: {width: 100}}}, {key: 'height', column: {props: {}}}, {key: 'weight', column: {props: {}}}, {key: 'level', column: {props: {width: '5fr'}}}]};
+      collection = {columns: [{key: 'name', props: {width: 100}}, {key: 'type', props: {width: 100}}, {key: 'height', props: {}}, {key: 'weight', props: {}}, {key: 'level', props: {width: '5fr'}}]};
       columns = layout.buildColumnWidths(
         1000,
         collection,
@@ -188,7 +182,7 @@ describe('TableUtils', () => {
         getDefaultWidth: () => 150,
         getDefaultMinWidth: () => 50
       });
-      let collection = {columns: [{key: 'name', column: {props: {width: '1fr'}}}, {key: 'type', column: {props: {width: '1fr'}}}, {key: 'height', column: {props: {}}}, {key: 'weight', column: {props: {}}}, {key: 'level', column: {props: {width: '5fr'}}}]};
+      let collection = {columns: [{key: 'name', props: {width: '1fr'}}, {key: 'type', props: {width: '1fr'}}, {key: 'height', props: {}}, {key: 'weight', props: {}}, {key: 'level', props: {width: '5fr'}}]};
       let columns = layout.buildColumnWidths(
         1000,
         collection,
@@ -197,16 +191,14 @@ describe('TableUtils', () => {
       expect(columns).toStrictEqual(new Map([['name', 100], ['type', 100], ['height', 150], ['weight', 150], ['level', 500]]));
 
       let resizedColumns = layout.resizeColumnWidth(
-        1000,
         collection,
-        new Map([['name', '1fr'], ['type', '1fr'], ['level', '5fr']]),
         new Map([['height', 150], ['weight', 150]]),
         'level',
         400
       );
       expect(resizedColumns).toStrictEqual(new Map([['name', 100], ['type', 100], ['height', 150], ['weight', 150], ['level', 400]]));
 
-      collection = {columns: [{key: 'name', column: {props: {width: 100}}}, {key: 'type', column: {props: {width: 100}}}, {key: 'height', column: {props: {}}}, {key: 'weight', column: {props: {}}}, {key: 'level', column: {props: {width: 400}}}]};
+      collection = {columns: [{key: 'name', props: {width: 100}}, {key: 'type', props: {width: 100}}, {key: 'height', props: {}}, {key: 'weight', props: {}}, {key: 'level', props: {width: 400}}]};
       columns = layout.buildColumnWidths(
         1000,
         collection,

@@ -13,7 +13,7 @@
 import {Color, ColorWheelProps} from '@react-types/color';
 import {normalizeColor, parseColor} from './Color';
 import {useControlledState} from '@react-stately/utils';
-import {useRef, useState} from 'react';
+import {useMemo, useRef, useState} from 'react';
 
 export interface ColorWheelState {
   /** The current color value represented by the color wheel. */
@@ -45,7 +45,10 @@ export interface ColorWheelState {
   /** The step value of the hue channel, used when incrementing and decrementing. */
   step: number,
   /** The page step value of the hue channel, used when incrementing and decrementing. */
-  pageStep: number
+  pageStep: number,
+
+  /** Whether the color wheel is disabled. */
+  readonly isDisabled: boolean
 }
 
 const DEFAULT_COLOR = parseColor('hsl(0, 100%, 50%)');
@@ -93,20 +96,34 @@ function cartesianToAngle(x: number, y: number, radius: number): number {
  * Color wheels allow users to adjust the hue of an HSL or HSB color value on a circular track.
  */
 export function useColorWheelState(props: ColorWheelProps): ColorWheelState {
-  let {defaultValue, onChange, onChangeEnd} = props;
+  let {value: propsValue, defaultValue, onChange, onChangeEnd} = props;
 
-  if (!props.value && !defaultValue) {
+  if (!propsValue && !defaultValue) {
     defaultValue = DEFAULT_COLOR;
   }
+  if (propsValue) {
+    propsValue = normalizeColor(propsValue);
+  }
+  if (defaultValue) {
+    defaultValue = normalizeColor(defaultValue);
+  }
 
-  let [value, setValue] = useControlledState(normalizeColor(props.value), normalizeColor(defaultValue), onChange);
+  // safe to cast value and defaultValue to Color, one of them will always be defined because if neither are, we assign a default
+  let [stateValue, setValueState] = useControlledState<Color>(propsValue as Color, defaultValue as Color, onChange);
+  let value = useMemo(() => {
+    let colorSpace = stateValue.getColorSpace();
+    return colorSpace === 'hsl' || colorSpace === 'hsb' ? stateValue : stateValue.toFormat('hsl');
+  }, [stateValue]);
   let valueRef = useRef(value);
-  valueRef.current = value;
+  let setValue = (value: Color) => {
+    valueRef.current = value;
+    setValueState(value);
+  };
 
   let channelRange = value.getChannelRange('hue');
   let {minValue: minValueX, maxValue: maxValueX, step: step, pageSize: pageStep} = channelRange;
   let [isDragging, setDragging] = useState(false);
-  let isDraggingRef = useRef(false).current;
+  let isDraggingRef = useRef(false);
 
   let hue = value.getChannelValue('hue');
   function setHue(v: number) {
@@ -117,7 +134,6 @@ export function useColorWheelState(props: ColorWheelProps): ColorWheelState {
     v = roundToStep(mod(v, 360), step);
     if (hue !== v) {
       let color = value.withChannelValue('hue', v);
-      valueRef.current = color;
       setValue(color);
     }
   }
@@ -128,7 +144,6 @@ export function useColorWheelState(props: ColorWheelProps): ColorWheelState {
     pageStep,
     setValue(v) {
       let color = normalizeColor(v);
-      valueRef.current = color;
       setValue(color);
     },
     hue,
@@ -159,8 +174,8 @@ export function useColorWheelState(props: ColorWheelProps): ColorWheelState {
       }
     },
     setDragging(isDragging) {
-      let wasDragging = isDraggingRef;
-      isDraggingRef = isDragging;
+      let wasDragging = isDraggingRef.current;
+      isDraggingRef.current = isDragging;
 
       if (onChangeEnd && !isDragging && wasDragging) {
         onChangeEnd(valueRef.current);
@@ -171,6 +186,7 @@ export function useColorWheelState(props: ColorWheelProps): ColorWheelState {
     isDragging,
     getDisplayColor() {
       return value.toFormat('hsl').withChannelValue('saturation', 100).withChannelValue('lightness', 50).withChannelValue('alpha', 1);
-    }
+    },
+    isDisabled: props.isDisabled || false
   };
 }

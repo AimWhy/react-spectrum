@@ -1,3 +1,4 @@
+// @ts-nocheck
 /*
  * Copyright 2021 Adobe. All rights reserved.
  * This file is licensed to you under the Apache License, Version 2.0 (the "License");
@@ -24,18 +25,16 @@ import {
   FalsyIds,
   FilteringGrid,
   IsLoadingHeightGrid,
-  IsLoadingNoHeightGrid,
   LoadingMoreGrid,
   StaticCards,
   StaticCardViewStory
 } from './GridCardView.stories';
 import {CardView, WaterfallLayout} from '../';
 import {ComponentStoryObj} from '@storybook/react';
-import React from 'react';
+import React, {useMemo} from 'react';
 import {Size} from '@react-stately/virtualizer';
 import {SpectrumCardViewProps} from '@react-types/card';
 import {useCollator} from '@react-aria/i18n';
-import {useMemo} from 'react';
 import {WaterfallLayoutOptions} from '../src/WaterfallLayout';
 
 let itemsNoSize = [
@@ -63,9 +62,15 @@ let itemsNoSize = [
   {src: 'https://i.imgur.com/zzwWogn.jpg', title: 'Bob 8'}
 ];
 
+// TODO: accessibility failures regarding article element with role="gridcell", will need to double check when we pick CardView back up
 export default {
   title: 'CardView/Waterfall layout',
   component: CardView,
+  parameters: {
+    chromatic: {
+      delay: 300
+    }
+  },
   args: {
     'aria-label': 'Test CardView'
   },
@@ -151,14 +156,6 @@ export const SelectedKeys: ControlledCardViewStory = {
   ...ControlledCards,
   args: {
     ...ControlledCards.args,
-    layout: WaterfallLayout
-  }
-};
-
-export const IsLoadingNoHeightWaterfall: DynamicCardViewStory = {
-  ...IsLoadingNoHeightGrid,
-  args: {
-    ...IsLoadingNoHeightGrid.args,
     layout: WaterfallLayout
   }
 };

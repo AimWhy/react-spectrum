@@ -11,7 +11,7 @@
  */
 
 import {action} from '@storybook/addon-actions';
-import {ActionGroup, AlertDialog, Button, DialogContainer, Flex} from '@adobe/react-spectrum';
+import {ActionGroup, AlertDialog, Avatar, Button, DialogContainer, Flex, Text} from '@adobe/react-spectrum';
 import AlignCenter from '@spectrum-icons/workflow/AlignCenter';
 import AlignLeft from '@spectrum-icons/workflow/AlignLeft';
 import AlignRight from '@spectrum-icons/workflow/AlignRight';
@@ -22,10 +22,11 @@ import Cut from '@spectrum-icons/workflow/Cut';
 import Delete from '@spectrum-icons/workflow/Delete';
 import {FocusScope} from '@react-aria/focus';
 import {Item, ListBox, Section} from '../';
+import {Key} from '@react-types/shared';
 import {Label} from '@react-spectrum/label';
 import Paste from '@spectrum-icons/workflow/Paste';
 import React, {useRef, useState} from 'react';
-import {Text} from '@react-spectrum/text';
+import {TranslateListBox} from './../chromatic/ListBoxLanguages.stories';
 import {useAsyncList, useTreeData} from '@react-stately/data';
 
 let iconMap = {
@@ -90,9 +91,9 @@ let itemsWithFalsyId = [
   ]}
 ];
 
-let lotsOfSections: any[] = [];
+let lotsOfSections: {name: string, children: {name: string}[]}[] = [];
 for (let i = 0; i < 50; i++) {
-  let children = [];
+  let children: {name: string}[] = [];
   for (let j = 0; j < 50; j++) {
     children.push({name: `Section ${i}, Item ${j}`});
   }
@@ -667,36 +668,38 @@ export const WithSemanticElementsStatic = {
       flexGrow={1}
       aria-labelledby="label"
       selectionMode="multiple"
+      disabledKeys={['paste', 'floof']}
       onSelectionChange={action('onSelectionChange')}>
       <Section title="Section 1">
-        <Item textValue="Copy">
+        <Item key="copy" textValue="Copy">
           <Copy size="S" />
           <Text>Copy</Text>
         </Item>
-        <Item textValue="Cut">
+        <Item key="cut" textValue="Cut">
           <Cut size="S" />
           <Text>Cut</Text>
         </Item>
-        <Item textValue="Paste">
+        <Item key="paste" textValue="Paste">
           <Paste size="S" />
           <Text>Paste</Text>
         </Item>
       </Section>
       <Section title="Section 2">
-        <Item textValue="Puppy">
+        <Item key="puppy" textValue="Puppy">
           <AlignLeft size="S" />
           <Text>Puppy</Text>
           <Text slot="description">Puppy description super long as well geez</Text>
         </Item>
-        <Item textValue="Doggo with really really really long long long text">
+        <Item key="floof" textValue="Floof">
+          <AlignRight size="S" />
+          <Text>Floof</Text>
+          <Text slot="description">Floof medium description</Text>
+        </Item>
+        <Item key="doggo" textValue="Doggo with really really really long long long text">
           <AlignCenter size="S" />
           <Text>Doggo with really really really long long long text</Text>
         </Item>
-        <Item textValue="Floof">
-          <AlignRight size="S" />
-          <Text>Floof</Text>
-        </Item>
-        <Item>Basic Item</Item>
+        <Item key="basic">Basic Item</Item>
       </Section>
     </ListBox>
   ),
@@ -733,7 +736,7 @@ export const WithSemanticElementsGenerativeMultipleSelection = {
 
 export const IsLoading = {
   render: () => (
-    <ListBox flexGrow={1} aria-labelledby="label" items={[]} isLoading>
+    <ListBox flexGrow={1} aria-labelledby="label" items={[] as any[]} isLoading>
       {(item) => <Item>{item.name}</Item>}
     </ListBox>
   ),
@@ -800,6 +803,12 @@ export const RestoreFocusExample = {
   name: 'restore focus after deleting selected items'
 };
 
+export const WithTranslations = {
+  render: () => <TranslateListBox />,
+  decorators: null,
+  name: 'with translations',
+  parameters: {description: {data: 'Translations included for: Arabic, English, Hebrew, Japanese, Korean, Simplified Chinese, and Traditional Chinese.'}}
+};
 
 let customOption = (item) => {
   let Icon = iconMap[item.icon];
@@ -852,8 +861,8 @@ function App() {
       <Button variant="primary" onPress={toggleSize}> Toggle Size</Button>
       <div style={{display: 'flex', height: size, overflow: 'hidden'}}>
         <Flex maxHeight="300px">
-          <Text>Max-Height: 300px</Text>
-          <ListBox width="150px" items={itemsForDemo}>
+          <Text id="label1">Max-Height: 300px</Text>
+          <ListBox width="150px" items={itemsForDemo} aria-labelledby="label1">
             { item => (
               <Item textValue={String(item.index)} key={item.index}>
                 <Text>IDX: {item.index}</Text>
@@ -862,8 +871,8 @@ function App() {
           </ListBox>
         </Flex>
         <Flex>
-          <Text>None</Text>
-          <ListBox width="150px" items={itemsForDemo}>
+          <Text id="label2">None</Text>
+          <ListBox width="150px" items={itemsForDemo} aria-labelledby="label2">
             { item => (
               <Item textValue={String(item.index)} key={item.index}>
                 <Text>IDX: {item.index}</Text>
@@ -872,8 +881,8 @@ function App() {
           </ListBox>
         </Flex>
         <Flex maxHeight="700px">
-          <Text>Max-Height: 700px</Text>
-          <ListBox width="150px" items={itemsForDemo}>
+          <Text id="label3">Max-Height: 700px</Text>
+          <ListBox width="150px" items={itemsForDemo} aria-labelledby="label3">
             { item => (
               <Item textValue={String(item.index)} key={item.index}>
                 <Text>IDX: {item.index}</Text>
@@ -882,8 +891,8 @@ function App() {
           </ListBox>
         </Flex>
         <Flex maxHeight="100%">
-          <Text>MaxHeight: 100%</Text>
-          <ListBox width="150px" items={itemsForDemo}>
+          <Text id="label4">MaxHeight: 100%</Text>
+          <ListBox width="150px" items={itemsForDemo} aria-labelledby="label4">
             { item => (
               <Item textValue={String(item.index)} key={item.index}>
                 <Text>IDX: {item.index}</Text>
@@ -892,8 +901,8 @@ function App() {
           </ListBox>
         </Flex>
         <Flex maxHeight="50%">
-          <Text>MaxHeight: 50%</Text>
-          <ListBox width="150px" items={itemsForDemo}>
+          <Text id="label5">MaxHeight: 50%</Text>
+          <ListBox width="150px" items={itemsForDemo} aria-labelledby="label5">
             { item => (
               <Item textValue={String(item.index)} key={item.index}>
                 <Text>IDX: {item.index}</Text>
@@ -902,8 +911,8 @@ function App() {
           </ListBox>
         </Flex>
         <Flex height="700px">
-          <Text>Height: 700px</Text>
-          <ListBox width="150px" items={itemsForDemo}>
+          <Text id="label6">Height: 700px</Text>
+          <ListBox width="150px" items={itemsForDemo} aria-labelledby="label6">
             { item => (
               <Item textValue={String(item.index)} key={item.index}>
                 <Text>IDX: {item.index}</Text>
@@ -912,8 +921,8 @@ function App() {
           </ListBox>
         </Flex>
         <Flex height="100%">
-          <Text>Height: 100%</Text>
-          <ListBox width="150px" items={itemsForDemo}>
+          <Text id="label7">Height: 100%</Text>
+          <ListBox width="150px" items={itemsForDemo} aria-labelledby="label7">
             { item => (
               <Item textValue={String(item.index)} key={item.index}>
                 <Text>IDX: {item.index}</Text>
@@ -930,16 +939,19 @@ export function FocusExample(args = {}) {
   let tree = useTreeData({
     initialItems: withSection,
     getKey: (item) => item.name,
-    getChildren: (item:{name:string, children?:{name:string, children?:{name:string}[]}[]}) => item.children
+    getChildren: (item: {name:string, children?:{name:string, children?:{name:string}[]}[]}) => item.children ?? []
   });
-  let [dialog, setDialog] = useState(null);
+
+  let [dialog, setDialog] = useState<{action: Key} | null>(null);
   let ref = useRef(null);
+
   return (
     <FocusScope>
       <Flex direction={'column'}>
         <ActionGroup marginBottom={8} onAction={action => setDialog({action})}>
-          {tree.selectedKeys.size > 0 &&
-            <Item key="bulk-delete" aria-label="Delete selected items"><Delete /></Item>
+          {(tree.selectedKeys.size > 0)
+            ? <Item key="bulk-delete" aria-label="Delete selected items"><Delete /></Item>
+            : null
           }
         </ActionGroup>
         <div style={{display: 'flex', flexDirection: 'column'}}>
@@ -952,14 +964,18 @@ export function FocusExample(args = {}) {
                 aria-labelledby="label"
                 items={tree.items}
                 selectedKeys={tree.selectedKeys}
-                onSelectionChange={tree.setSelectedKeys}
+                onSelectionChange={(keys) => {
+                  if (keys !== 'all') {
+                    tree.setSelectedKeys(keys);
+                  }
+                }}
                 selectionMode="multiple"
                 {...args}>
-                {item => item.children.length && (
+                {item => item?.children?.length ? (
                   <Section key={item.value.name} items={item.children} title={item.value.name}>
                     {item => <Item key={item.value.name}>{item.value.name}</Item>}
                   </Section>
-                )}
+                ) : null}
               </ListBox>
             }
           </div>
@@ -977,5 +993,125 @@ export function FocusExample(args = {}) {
         </DialogContainer>
       </Flex>
     </FocusScope>
+  );
+}
+
+export const Links = (args) => {
+  return (
+    <ListBox aria-label="ListBox with links" width="250px" height={400} onSelectionChange={action('onSelectionChange')} {...args}>
+      <Item key="https://adobe.com/" href="https://adobe.com/">Adobe</Item>
+      <Item key="https://google.com/" href="https://google.com/">Google</Item>
+      <Item key="https://apple.com/" href="https://apple.com/">Apple</Item>
+      <Item key="https://nytimes.com/" href="https://nytimes.com/">New York Times</Item>
+      <Item>Non link</Item>
+    </ListBox>
+  );
+};
+
+Links.story = {
+  decorators: [(Story) => (
+    <StoryDecorator>
+      <Story />
+    </StoryDecorator>
+  )],
+  args: {
+    selectionMode: 'none'
+  },
+  argTypes: {
+    selectionMode: {
+      control: {
+        type: 'radio',
+        options: ['none', 'single', 'multiple']
+      }
+    }
+  }
+};
+
+export const WithAvatars = {
+  render: () => (
+    <ListBox aria-label="Listbox with avatars" width="350px">
+      <Item textValue="Person 1">
+        <Text>Person 1</Text>
+        <Avatar src="https://i.imgur.com/kJOwAdv.png" alt="default Adobe avatar" />
+      </Item>
+      <Item textValue="Person 1">
+        <Text>Person 2</Text>
+        <Avatar src="https://i.imgur.com/kJOwAdv.png" alt="default Adobe avatar" />
+      </Item>
+      <Item textValue="Person 1">
+        <Text>Person 3</Text>
+        <Avatar src="https://i.imgur.com/kJOwAdv.png" alt="default Adobe avatar" />
+      </Item>
+    </ListBox>
+  ),
+  decorators: [(Story) => (
+    <StoryDecorator>
+      <Story />
+    </StoryDecorator>
+  )]
+};
+
+interface ItemValue {
+  name: string,
+  items?: Array<ItemValue> | null
+}
+
+export function WithTreeData() {
+  let tree = useTreeData<ItemValue>({
+    initialItems: [
+      {
+        name: 'People',
+        items: [
+          {name: 'David'},
+          {name: 'Sam'},
+          {name: 'Jane'}
+        ]
+      },
+      {
+        name: 'Animals',
+        items: [
+          {name: 'Aardvark'},
+          {name: 'Kangaroo'},
+          {name: 'Snake', items: null}
+        ]
+      }
+    ],
+    initialSelectedKeys: ['Sam', 'Kangaroo'],
+    getKey: item => item.name,
+    getChildren: item => item.items || []
+  });
+  return (
+    <ListBox
+      width="250px"
+      height={400}
+      aria-label="List organisms"
+      items={tree.items}
+      selectedKeys={tree.selectedKeys}
+      selectionMode="multiple"
+      onSelectionChange={(keys) => {
+        if (keys === 'all') {
+          tree.setSelectedKeys(new Set(tree.items.reduce((acc, item) => {
+            acc.push(item.key);
+            function traverse(children) {
+              if (children) {
+                children.forEach(child => {
+                  acc.push(child.key);
+                  traverse(child.children);
+                });
+              }
+            }
+            traverse(item.children);
+            return acc;
+          }, [] as Key[])));
+        } else {
+          tree.setSelectedKeys(keys);
+        }
+      }}>
+      {node => (
+        <Section title={node.value.name} items={node.children ?? []}>
+          {node => <Item>{node.value.name}</Item>}
+        </Section>
+      )}
+    </ListBox>
   );
 }

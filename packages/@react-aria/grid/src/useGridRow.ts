@@ -10,16 +10,16 @@
  * governing permissions and limitations under the License.
  */
 
-import {DOMAttributes, FocusableElement, Node} from '@react-types/shared';
-import {GridCollection} from '@react-types/grid';
+import {chain} from '@react-aria/utils';
+import {DOMAttributes, FocusableElement, RefObject} from '@react-types/shared';
+import {GridCollection, GridNode} from '@react-types/grid';
 import {gridMap} from './utils';
 import {GridState} from '@react-stately/grid';
-import {RefObject} from 'react';
 import {SelectableItemStates, useSelectableItem} from '@react-aria/selection';
 
 export interface GridRowProps<T> {
   /** An object representing the grid row. Contains all the relevant information that makes up the grid row. */
-  node: Node<T>,
+  node: GridNode<T>,
   /** Whether the grid row is contained in a virtual scroller. */
   isVirtualized?: boolean,
   /** Whether selection should occur on press up instead of press down. */
@@ -44,7 +44,7 @@ export interface GridRowAria extends SelectableItemStates {
  * @param props - Props for the row.
  * @param state - State of the parent grid, as returned by `useGridState`.
  */
-export function useGridRow<T, C extends GridCollection<T>, S extends GridState<T, C>>(props: GridRowProps<T>, state: S, ref: RefObject<FocusableElement>): GridRowAria {
+export function useGridRow<T, C extends GridCollection<T>, S extends GridState<T, C>>(props: GridRowProps<T>, state: S, ref: RefObject<FocusableElement | null>): GridRowAria {
   let {
     node,
     isVirtualized,
@@ -52,14 +52,15 @@ export function useGridRow<T, C extends GridCollection<T>, S extends GridState<T
     onAction
   } = props;
 
-  let {actions: {onRowAction}} = gridMap.get(state);
+  let {actions} = gridMap.get(state)!;
+  let onRowAction = actions.onRowAction ? () => actions.onRowAction?.(node.key) : onAction;
   let {itemProps, ...states} = useSelectableItem({
     selectionManager: state.selectionManager,
     key: node.key,
     ref,
     isVirtualized,
     shouldSelectOnPressUp,
-    onAction: onRowAction ? () => onRowAction(node.key) : onAction,
+    onAction: onRowAction || node?.props?.onAction ? chain(node?.props?.onAction, onRowAction) : undefined,
     isDisabled: state.collection.size === 0
   });
 

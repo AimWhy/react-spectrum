@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-import {act, fireEvent, installPointerEvent, render} from '@react-spectrum/test-utils';
+import {act, fireEvent, installPointerEvent, render} from '@react-spectrum/test-utils-internal';
 import {mergeProps} from '@react-aria/utils';
 import React from 'react';
 import {useLongPress, usePress} from '../';
@@ -60,7 +60,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       }
     ]);
 
@@ -73,7 +75,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       }
     ]);
 
@@ -86,7 +90,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'longpressend',
@@ -95,7 +101,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'longpress',
@@ -104,7 +112,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       }
     ]);
 
@@ -117,7 +127,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'longpressend',
@@ -126,7 +138,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'longpress',
@@ -135,7 +149,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       }
     ]);
   });
@@ -165,7 +181,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'longpressend',
@@ -174,7 +192,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       }
     ]);
   });
@@ -206,7 +226,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'pressstart',
@@ -215,7 +237,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'longpressend',
@@ -224,7 +248,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'pressend',
@@ -233,7 +259,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'longpress',
@@ -242,7 +270,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       }
     ]);
   });
@@ -265,6 +295,7 @@ describe('useLongPress', function () {
     fireEvent.pointerDown(el, {pointerType: 'touch'});
     act(() => jest.advanceTimersByTime(300));
     fireEvent.pointerUp(el, {pointerType: 'touch'});
+    fireEvent.click(el, {detail: 1});
 
     expect(events).toEqual([
       {
@@ -274,7 +305,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'pressstart',
@@ -283,7 +316,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'longpressend',
@@ -292,7 +327,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'pressend',
@@ -301,7 +338,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'press',
@@ -310,7 +349,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       }
     ]);
   });
@@ -338,7 +379,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       }
     ]);
 
@@ -351,7 +394,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'longpressend',
@@ -360,7 +405,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       },
       {
         type: 'longpress',
@@ -369,7 +416,9 @@ describe('useLongPress', function () {
         ctrlKey: false,
         metaKey: false,
         shiftKey: false,
-        altKey: false
+        altKey: false,
+        x: 0,
+        y: 0
       }
     ]);
   });

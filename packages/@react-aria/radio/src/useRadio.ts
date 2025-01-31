@@ -11,14 +11,18 @@
  */
 
 import {AriaRadioProps} from '@react-types/radio';
-import {filterDOMProps, mergeProps} from '@react-aria/utils';
-import {InputHTMLAttributes, RefObject} from 'react';
-import {radioGroupDescriptionIds, radioGroupErrorMessageIds, radioGroupNames} from './utils';
+import {filterDOMProps, mergeProps, useFormReset} from '@react-aria/utils';
+import {InputHTMLAttributes, LabelHTMLAttributes} from 'react';
+import {radioGroupData} from './utils';
 import {RadioGroupState} from '@react-stately/radio';
+import {RefObject} from '@react-types/shared';
 import {useFocusable} from '@react-aria/focus';
+import {useFormValidation} from '@react-aria/form';
 import {usePress} from '@react-aria/interactions';
 
 export interface RadioAria {
+  /** Props for the label wrapper element. */
+  labelProps: LabelHTMLAttributes<HTMLLabelElement>,
   /** Props for the input element. */
   inputProps: InputHTMLAttributes<HTMLInputElement>,
   /** Whether the radio is disabled. */
@@ -36,7 +40,7 @@ export interface RadioAria {
  * @param state - State for the radio group, as returned by `useRadioGroupState`.
  * @param ref - Ref to the HTML input element.
  */
-export function useRadio(props: AriaRadioProps, state: RadioGroupState, ref: RefObject<HTMLInputElement>): RadioAria {
+export function useRadio(props: AriaRadioProps, state: RadioGroupState, ref: RefObject<HTMLInputElement | null>): RadioAria {
   let {
     value,
     children,
@@ -59,7 +63,13 @@ export function useRadio(props: AriaRadioProps, state: RadioGroupState, ref: Ref
     state.setSelectedValue(value);
   };
 
+  // Handle press state for keyboard interactions and cases where labelProps is not used.
   let {pressProps, isPressed} = usePress({
+    isDisabled
+  });
+
+  // Handle press state on the label.
+  let {pressProps: labelProps, isPressed: isLabelPressed} = usePress({
     isDisabled
   });
 
@@ -68,28 +78,42 @@ export function useRadio(props: AriaRadioProps, state: RadioGroupState, ref: Ref
   }), ref);
   let interactions = mergeProps(pressProps, focusableProps);
   let domProps = filterDOMProps(props, {labelable: true});
-  let tabIndex = state.lastFocusedValue === value || state.lastFocusedValue == null ? 0 : -1;
+  let tabIndex: number | undefined = -1;
+  if (state.selectedValue != null) {
+    if (state.selectedValue === value) {
+      tabIndex = 0;
+    }
+  } else if (state.lastFocusedValue === value || state.lastFocusedValue == null) {
+    tabIndex = 0;
+  }
   if (isDisabled) {
     tabIndex = undefined;
   }
 
+  let {name, descriptionId, errorMessageId, validationBehavior} = radioGroupData.get(state)!;
+  useFormReset(ref, state.selectedValue, state.setSelectedValue);
+  useFormValidation({validationBehavior}, state, ref);
+
   return {
+    labelProps,
     inputProps: mergeProps(domProps, {
       ...interactions,
       type: 'radio',
-      name: radioGroupNames.get(state),
+      name,
       tabIndex,
       disabled: isDisabled,
+      required: state.isRequired && validationBehavior === 'native',
       checked,
       value,
       onChange,
       'aria-describedby': [
-        state.validationState === 'invalid' ? radioGroupErrorMessageIds.get(state) : null,
-        radioGroupDescriptionIds.get(state)
+        props['aria-describedby'],
+        state.isInvalid ? errorMessageId : null,
+        descriptionId
       ].filter(Boolean).join(' ') || undefined
     }),
     isDisabled,
     isSelected: checked,
-    isPressed
+    isPressed: isPressed || isLabelPressed
   };
 }

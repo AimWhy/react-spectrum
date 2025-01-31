@@ -12,7 +12,10 @@
 
 // Can't `import` babel, have to require?
 const babel = require('@babel/core');
-import {act} from '@testing-library/react';
+let act = require('react').act;
+if (!act) {
+  act = require('@testing-library/react').act;
+}
 import {evaluate} from './ssrUtils';
 import http from 'http';
 import React from 'react';
@@ -23,11 +26,11 @@ import util from 'util';
 let ReactDOMClient;
 try {
   ReactDOMClient = require('react-dom/client');
-} catch (err) {
+} catch {
   // ignore.
 }
 
-export async function testSSR(filename, source) {
+export async function testSSR(filename, source, runAfterServer) {
   // Transform the code with babel so JSX becomes JS.
   source = babel.transformSync(source, {filename}).code;
 
@@ -64,11 +67,12 @@ export async function testSSR(filename, source) {
         try {
           document.body.innerHTML = `<div id="root">${body}</div>`;
           let container = document.querySelector('#root');
+          runAfterServer?.();
           let element = evaluate(source, filename);
           if (ReactDOMClient) {
             act(() => ReactDOMClient.hydrateRoot(container, <SSRProvider>{element}</SSRProvider>));
           } else {
-            ReactDOM.hydrate(<SSRProvider>{element}</SSRProvider>, container);
+            act(() => {ReactDOM.hydrate(<SSRProvider>{element}</SSRProvider>, container);});
           }
         } catch (err) {
           errors.push(err.stack);

@@ -22,16 +22,21 @@ export interface Locale {
   direction: Direction
 }
 
+// Locale passed from server by PackageLocalizationProvider.
+const localeSymbol = Symbol.for('react-aria.i18n.locale');
+
 /**
  * Gets the locale setting of the browser.
  */
 export function getDefaultLocale(): Locale {
-  // @ts-ignore
-  let locale = (typeof navigator !== 'undefined' && (navigator.language || navigator.userLanguage)) || 'en-US';
-  try {
+  let locale = typeof window !== 'undefined' && window[localeSymbol]
     // @ts-ignore
+    || (typeof navigator !== 'undefined' && (navigator.language || navigator.userLanguage))
+    || 'en-US';
+
+  try {
     Intl.DateTimeFormat.supportedLocalesOf([locale]);
-  } catch (_err) {
+  } catch {
     locale = 'en-US';
   }
   return {

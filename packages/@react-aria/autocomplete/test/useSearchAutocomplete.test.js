@@ -11,28 +11,24 @@
  */
 
 import {Item} from '@react-stately/collections';
-import {ListLayout} from '@react-stately/layout';
 import React from 'react';
-import {renderHook} from '@react-spectrum/test-utils';
+import {renderHook} from '@react-spectrum/test-utils-internal';
 import {useComboBoxState} from '@react-stately/combobox';
 import {useSearchAutocomplete} from '../';
-import {useSingleSelectListState} from '@react-stately/list';
 
 describe('useSearchAutocomplete', function () {
   let preventDefault = jest.fn();
   let stopPropagation = jest.fn();
   let event = (e) => ({
     ...e,
+    nativeEvent: {
+      isComposing: false
+    },
     preventDefault,
     stopPropagation
   });
 
   let defaultProps = {items: [{id: 1, name: 'one'}], children: (props) => <Item>{props.name}</Item>};
-  let {result} = renderHook(() => useSingleSelectListState(defaultProps));
-  let mockLayout = new ListLayout({
-    rowHeight: 40
-  });
-  mockLayout.collection = result.current.collection;
 
   afterEach(() => {
     jest.clearAllMocks();
@@ -43,11 +39,10 @@ describe('useSearchAutocomplete', function () {
       label: 'test label',
       popoverRef: React.createRef(),
       inputRef: React.createRef(),
-      listBoxRef: React.createRef(),
-      layout: mockLayout
+      listBoxRef: React.createRef()
     };
 
-    let {result} = renderHook(() => useSearchAutocomplete(props, useSingleSelectListState(defaultProps)));
+    let {result} = renderHook(() => useSearchAutocomplete(props, useComboBoxState(defaultProps)));
     let {inputProps, listBoxProps, labelProps} = result.current;
 
     expect(labelProps.id).toBeTruthy();
@@ -69,13 +64,9 @@ describe('useSearchAutocomplete', function () {
       label: 'test label',
       popoverRef: React.createRef(),
       inputRef: {
-        current: {
-          contains: jest.fn(),
-          focus: jest.fn()
-        }
+        current: document.createElement('input')
       },
-      listBoxRef: React.createRef(),
-      layout: mockLayout
+      listBoxRef: React.createRef()
     };
 
     let {result: state} = renderHook((props) => useComboBoxState(props), {initialProps: props});

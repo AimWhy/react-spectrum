@@ -14,17 +14,15 @@ let formatterCache = new Map<string, Intl.NumberFormat>();
 
 let supportsSignDisplay = false;
 try {
-  // @ts-ignore
   supportsSignDisplay = (new Intl.NumberFormat('de-DE', {signDisplay: 'exceptZero'})).resolvedOptions().signDisplay === 'exceptZero';
   // eslint-disable-next-line no-empty
-} catch (e) {}
+} catch {}
 
 let supportsUnit = false;
 try {
-  // @ts-ignore
   supportsUnit = (new Intl.NumberFormat('de-DE', {style: 'unit', unit: 'degree'})).resolvedOptions().style === 'unit';
   // eslint-disable-next-line no-empty
-} catch (e) {}
+} catch {}
 
 // Polyfill for units since Safari doesn't support them yet. See https://bugs.webkit.org/show_bug.cgi?id=215438.
 // Currently only polyfilling the unit degree in narrow format for ColorSlider in our supported locales.
@@ -74,6 +72,9 @@ export class NumberFormatter implements Intl.NumberFormat {
 
     if (this.options.style === 'unit' && !supportsUnit) {
       let {unit, unitDisplay = 'short', locale} = this.resolvedOptions();
+      if (!unit) {
+        return res;
+      }
       let values = UNITS[unit]?.[unitDisplay];
       res += values[locale] || values.default;
     }
@@ -84,15 +85,12 @@ export class NumberFormatter implements Intl.NumberFormat {
   /** Formats a number to an array of parts such as separators, digits, punctuation, and more. */
   formatToParts(value: number): Intl.NumberFormatPart[] {
     // TODO: implement signDisplay for formatToParts
-    // @ts-ignore
     return this.numberFormatter.formatToParts(value);
   }
 
   /** Formats a number range as a string. */
   formatRange(start: number, end: number): string {
-    // @ts-ignore
     if (typeof this.numberFormatter.formatRange === 'function') {
-      // @ts-ignore
       return this.numberFormatter.formatRange(start, end);
     }
 
@@ -106,9 +104,7 @@ export class NumberFormatter implements Intl.NumberFormat {
 
   /** Formats a number range as an array of parts. */
   formatRangeToParts(start: number, end: number): NumberRangeFormatPart[] {
-    // @ts-ignore
     if (typeof this.numberFormatter.formatRangeToParts === 'function') {
-      // @ts-ignore
       return this.numberFormatter.formatRangeToParts(start, end);
     }
 
@@ -142,8 +138,11 @@ export class NumberFormatter implements Intl.NumberFormat {
 
 function getCachedNumberFormatter(locale: string, options: NumberFormatOptions = {}): Intl.NumberFormat {
   let {numberingSystem} = options;
-  if (numberingSystem && locale.indexOf('-u-nu-') === -1) {
-    locale = `${locale}-u-nu-${numberingSystem}`;
+  if (numberingSystem && locale.includes('-nu-')) {
+    if (!locale.includes('-u-')) {
+      locale += '-u-';
+    }
+    locale += `-nu-${numberingSystem}`;
   }
 
   if (options.style === 'unit' && !supportsUnit) {
@@ -159,7 +158,7 @@ function getCachedNumberFormatter(locale: string, options: NumberFormatOptions =
 
   let cacheKey = locale + (options ? Object.entries(options).sort((a, b) => a[0] < b[0] ? -1 : 1).join() : '');
   if (formatterCache.has(cacheKey)) {
-    return formatterCache.get(cacheKey);
+    return formatterCache.get(cacheKey)!;
   }
 
   let numberFormatter = new Intl.NumberFormat(locale, options);

@@ -10,11 +10,12 @@
  * governing permissions and limitations under the License.
  */
 
-import {Content, Header} from '@react-spectrum/view';
-import {InlineAlert} from '../';
+import {Button} from '@react-spectrum/button';
+import {Content} from '@react-spectrum/view';
+import {Heading} from '@react-spectrum/text';
+import {InlineAlert, SpectrumInlineAlertProps} from '../';
 import {Meta} from '@storybook/react';
-import React from 'react';
-import {SpectrumInlineAlertProps} from '@react-types/inlinealert';
+import React, {useState} from 'react';
 
 type StoryArgs = SpectrumInlineAlertProps & {title: string, content: string};
 
@@ -44,23 +45,28 @@ export default meta;
 export const Default = {
   render: (args) => (
     <InlineAlert {...args}>
-      <Header>{args.title}</Header>
+      <Heading>{args.title}</Heading>
       <Content>{args.content}</Content>
     </InlineAlert>
   )
 };
 
-export const LongContent = {
-  ...Default,
-  args: {
-    title: 'Unable to process payment',
-    content: 'There was an error processing your payment. Please check your credit card information is correct, then try again.'
-  }
+export const Dynamic = {
+  render: (args) => <DynamicExample {...args} />
 };
 
-export const InfoVariant = {
-  ...Default,
-  args: {
-    variant: 'info'
-  }
-};
+function DynamicExample(args) {
+  let [shown, setShown] = useState(false);
+
+  return (
+    <>
+      <Button variant="primary" onPress={() => setShown(!shown)}>{shown ? 'Hide Alert' : 'Show Alert'}</Button>
+      {shown &&
+        <InlineAlert {...args} autoFocus>
+          <Heading>{args.title}</Heading>
+          <Content>{args.content}</Content>
+        </InlineAlert>
+      }
+    </>
+  );
+}

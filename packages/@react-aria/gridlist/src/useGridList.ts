@@ -16,11 +16,14 @@ import {
   DisabledBehavior,
   DOMAttributes,
   DOMProps,
+  FocusStrategy,
+  Key,
   KeyboardDelegate,
-  MultipleSelection
+  LayoutDelegate,
+  MultipleSelection,
+  RefObject
 } from '@react-types/shared';
 import {filterDOMProps, mergeProps, useId} from '@react-aria/utils';
-import {Key, RefObject} from 'react';
 import {listMap} from './utils';
 import {ListState} from '@react-stately/list';
 import {useGridSelectionAnnouncement, useHighlightSelectionDescription} from '@react-aria/grid';
@@ -28,6 +31,8 @@ import {useHasTabbableChild} from '@react-aria/focus';
 import {useSelectableList} from '@react-aria/selection';
 
 export interface GridListProps<T> extends CollectionBase<T>, MultipleSelection {
+  /** Whether to auto focus the gridlist or an option. */
+  autoFocus?: boolean | FocusStrategy,
   /**
    * Handler that is called when a user performs an action on an item. The exact user event depends on
    * the collection's `selectionBehavior` prop and the interaction modality.
@@ -37,7 +42,14 @@ export interface GridListProps<T> extends CollectionBase<T>, MultipleSelection {
   disabledBehavior?: DisabledBehavior
 }
 
-export interface AriaGridListProps<T> extends GridListProps<T>, DOMProps, AriaLabelingProps {}
+export interface AriaGridListProps<T> extends GridListProps<T>, DOMProps, AriaLabelingProps {
+  /**
+   * Whether keyboard navigation to focusable elements within grid list items is
+   * via the left/right arrow keys or the tab key.
+   * @default 'arrow'
+   */
+  keyboardNavigationBehavior?: 'arrow' | 'tab'
+}
 
 export interface AriaGridListOptions<T> extends Omit<AriaGridListProps<T>, 'children'> {
   /** Whether the list uses virtual scrolling. */
@@ -48,10 +60,24 @@ export interface AriaGridListOptions<T> extends Omit<AriaGridListProps<T>, 'chil
    */
   keyboardDelegate?: KeyboardDelegate,
   /**
+   * A delegate object that provides layout information for items in the collection.
+   * By default this uses the DOM, but this can be overridden to implement things like
+   * virtualized scrolling.
+   */
+  layoutDelegate?: LayoutDelegate,
+  /**
    * Whether focus should wrap around when the end/start is reached.
    * @default false
    */
-  shouldFocusWrap?: boolean
+  shouldFocusWrap?: boolean,
+  /**
+   * The behavior of links in the collection.
+   * - 'action': link behaves like onAction.
+   * - 'selection': link follows selection interactions (e.g. if URL drives selection).
+   * - 'override': links override all other interactions (link items are not selectable).
+   * @default 'action'
+   */
+  linkBehavior?: 'action' | 'selection' | 'override'
 }
 
 export interface GridListAria {
@@ -66,11 +92,14 @@ export interface GridListAria {
  * @param state - State for the list, as returned by `useListState`.
  * @param ref - The ref attached to the list element.
  */
-export function useGridList<T>(props: AriaGridListOptions<T>, state: ListState<T>, ref: RefObject<HTMLElement>): GridListAria {
+export function useGridList<T>(props: AriaGridListOptions<T>, state: ListState<T>, ref: RefObject<HTMLElement | null>): GridListAria {
   let {
     isVirtualized,
     keyboardDelegate,
-    onAction
+    layoutDelegate,
+    onAction,
+    linkBehavior = 'action',
+    keyboardNavigationBehavior = 'arrow'
   } = props;
 
   if (!props['aria-label'] && !props['aria-labelledby']) {
@@ -82,14 +111,17 @@ export function useGridList<T>(props: AriaGridListOptions<T>, state: ListState<T
     collection: state.collection,
     disabledKeys: state.disabledKeys,
     ref,
-    keyboardDelegate: keyboardDelegate,
+    keyboardDelegate,
+    layoutDelegate,
     isVirtualized,
     selectOnFocus: state.selectionManager.selectionBehavior === 'replace',
-    shouldFocusWrap: props.shouldFocusWrap
+    shouldFocusWrap: props.shouldFocusWrap,
+    linkBehavior,
+    autoFocus: props.autoFocus
   });
 
   let id = useId(props.id);
-  listMap.set(state, {id, onAction});
+  listMap.set(state, {id, onAction, linkBehavior, keyboardNavigationBehavior});
 
   let descriptionProps = useHighlightSelectionDescription({
     selectionManager: state.selectionManager,

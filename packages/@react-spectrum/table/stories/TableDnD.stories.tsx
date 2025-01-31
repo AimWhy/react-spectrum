@@ -12,13 +12,12 @@
 
 import {action} from '@storybook/addon-actions';
 import {ComponentMeta} from '@storybook/react';
-import defaultConfig from './Table.stories';
+import defaultConfig, {TableStory} from './Table.stories';
 import {Divider} from '@react-spectrum/divider';
-import {DragBetweenTablesExample, DragBetweenTablesRootOnlyExample, DragExample, DragOntoRowExample, ReorderExample} from './TableDnDExamples';
-import {Droppable} from '@react-aria/dnd/stories/dnd.stories';
+import {DragBetweenTablesExample, DragBetweenTablesRootOnlyExample, DragExample, DragOntoRowExample, DragWithoutRowHeaderExample, items, ReorderExample} from './TableDnDExamples';
+import {Droppable} from '../../../@react-aria/dnd/stories/dnd.stories';
 import {Flex} from '@react-spectrum/layout';
 import React from 'react';
-import {TableStory} from './Table.stories';
 import {TableView} from '../';
 import {View} from '@react-spectrum/view';
 
@@ -27,6 +26,7 @@ export default {
   title: 'TableView/Drag and Drop'
 } as ComponentMeta<typeof TableView>;
 
+// Known accessibility issue that will be caught by aXe: https://github.com/adobe/react-spectrum/wiki/Known-accessibility-false-positives#tableview
 export const DragOutOfTable: TableStory = {
   args: {
     disabledKeys: ['Foo 2']
@@ -41,6 +41,19 @@ export const DragOutOfTable: TableStory = {
   ),
   name: 'Drag out of table'
 };
+
+export const DragOutOfTableWithoutTableHeader: TableStory = {
+  render: (args) => (
+    <Flex direction="row" wrap alignItems="center" gap="size-200">
+      <Droppable />
+      <DragWithoutRowHeaderExample
+        dragHookOptions={{onDragStart: action('dragStart'), onDragEnd: action('dragEnd')}}
+        tableViewProps={args} />
+    </Flex>
+  ),
+  name: 'Drag out of table without table header'
+};
+
 export const CustomDragPreview: TableStory = {
   args: {
     disabledKeys: ['Foo 2']
@@ -63,7 +76,7 @@ export const CustomDragPreview: TableStory = {
         tableViewProps={args} />
     </Flex>
   ),
-  storyName: 'Custom drag preview'
+  name: 'Custom drag preview'
 };
 
 export const DragWithinTable: TableStory = {
@@ -76,6 +89,23 @@ export const DragWithinTable: TableStory = {
     </Flex>
   ),
   name: 'Drag within table (Reorder)'
+};
+
+let manyItems: typeof items = [];
+for (let i = 0; i < 100; i++) {
+  manyItems.push({...items[i % 10], id: `${i}`});
+}
+
+export const DragWithinTableManyItems: TableStory = {
+  args: {
+    disabledKeys: ['Foo 2']
+  },
+  render: (args) => (
+    <Flex direction="row" wrap alignItems="center">
+      <ReorderExample items={manyItems} tableViewProps={args} onDrop={action('drop')} onDragStart={action('dragStart')} onDragEnd={action('dragEnd')} />
+    </Flex>
+  ),
+  name: 'Drag within table many items'
 };
 
 export const DragOntoRow: TableStory = {

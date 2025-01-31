@@ -14,9 +14,9 @@ import {CollectionBuilderContext} from './useTableState';
 import {ColumnProps} from '@react-types/table';
 import {GridNode} from '@react-types/grid';
 import {PartialNode} from '@react-stately/collections';
-import React, {ReactElement} from 'react';
+import React, {JSX, ReactElement} from 'react';
 
-function Column<T>(props: ColumnProps<T>): ReactElement { // eslint-disable-line @typescript-eslint/no-unused-vars
+function Column<T>(props: ColumnProps<T>): ReactElement | null { // eslint-disable-line @typescript-eslint/no-unused-vars
   return null;
 }
 
@@ -28,7 +28,7 @@ Column.getCollectionNode = function* getCollectionNode<T>(props: ColumnProps<T>,
 
   let fullNodes = yield {
     type: 'column',
-    hasChildNodes: !!childColumns || (title && React.Children.count(children) > 0),
+    hasChildNodes: !!childColumns || (!!title && React.Children.count(children) > 0),
     rendered,
     textValue,
     props,

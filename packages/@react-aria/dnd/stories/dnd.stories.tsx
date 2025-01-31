@@ -13,8 +13,8 @@
 import {action} from '@storybook/addon-actions';
 import {ActionButton} from '@react-spectrum/button';
 import {ActionGroup} from '@react-spectrum/actiongroup';
-import {chain, useId} from '@react-aria/utils';
-import {classNames} from '@react-spectrum/utils';
+import {chain, mergeProps, useId} from '@react-aria/utils';
+import {classNames, unwrapDOMRef} from '@react-spectrum/utils';
 import {Content} from '@react-spectrum/view';
 import Copy from '@spectrum-icons/workflow/Copy';
 import Cut from '@spectrum-icons/workflow/Cut';
@@ -24,20 +24,18 @@ import {DraggableListBox} from './DraggableListBox';
 import {DragPreview} from '../src/DragPreview';
 import {DroppableGridExample} from './DroppableGrid';
 import {DroppableListBox, DroppableListBoxExample} from './DroppableListBox';
-import dropzoneStyles from '@adobe/spectrum-css-temp/components/dropzone/vars.css';
+import dropzoneStyles from '@adobe/spectrum-css-temp/components/dnd/vars.css';
 import {Flex} from '@react-spectrum/layout';
 import {FocusRing} from '@react-aria/focus';
 import Folder from '@spectrum-icons/workflow/Folder';
 import {GridCollection, useGridState} from '@react-stately/grid';
 import {Heading} from '@react-spectrum/text';
 import {Item} from '@react-stately/collections';
-import {mergeProps} from '@react-aria/utils';
 import Paste from '@spectrum-icons/workflow/Paste';
 import {PressResponder} from '@react-aria/interactions';
 import React, {useRef} from 'react';
 import {ReorderableGridExample} from './Reorderable';
 import ShowMenu from '@spectrum-icons/workflow/ShowMenu';
-import {unwrapDOMRef} from '@react-spectrum/utils';
 import {useButton} from '@react-aria/button';
 import {useClipboard, useDrag, useDraggableCollection, useDraggableItem, useDrop} from '..';
 import {useDraggableCollectionState} from '@react-stately/dnd';
@@ -46,7 +44,12 @@ import {useListData} from '@react-stately/data';
 import {useListState} from '@react-stately/list';
 import {VirtualizedListBoxExample} from './VirtualizedListBox';
 
-let manyItems = [];
+interface ItemValue {
+  id: string,
+  type: string,
+  text: string
+}
+let manyItems: Array<ItemValue> = [];
 for (let i = 0; i < 20; i++) {
   manyItems.push({id: '' + i, type: 'item', text: 'Item ' + i});
 }
@@ -60,9 +63,9 @@ export const Default = () => (
   <Flex direction="column" gap="size-200" alignItems="center">
     <Draggable />
     <Droppable />
-    <input />
+    <input aria-label="test input 1" />
     <Droppable type="text/html" />
-    <input />
+    <input aria-label="test input 2" />
     <Droppable />
   </Flex>
 );
@@ -76,7 +79,14 @@ export const NestedDropRegions = {
       </Droppable>
     </Flex>
   ),
-  name: 'nested drop regions'
+  name: 'nested drop regions',
+  parameters: {
+    a11y: {
+      config: {
+        rules: [{id: 'nested-interactive', enabled: false}]
+      }
+    }
+  }
 };
 
 export const DraggableListbox = {
@@ -245,7 +255,12 @@ export const MultipleCollectionDropTargets = {
 
 export const Reorderable = () => <ReorderableGridExample />;
 
-function Draggable() {
+export const DraggableDisabled = {
+  render: () => <Draggable isDisabled />,
+  name: 'Draggable isDisabled'
+};
+
+export function Draggable({isDisabled = false}) {
   let {dragProps, isDragging} = useDrag({
     getItems() {
       return [{
@@ -257,7 +272,8 @@ function Draggable() {
     },
     onDragStart: action('onDragStart'),
     // onDragMove: action('onDragMove'),
-    onDragEnd: action('onDragEnd')
+    onDragEnd: action('onDragEnd'),
+    isDisabled
   });
 
   let {clipboardProps} = useClipboard({
@@ -268,7 +284,7 @@ function Draggable() {
     }
   });
 
-  let ref = React.useRef();
+  let ref = React.useRef(null);
   let {buttonProps} = useButton({elementType: 'div'}, ref);
 
   return (
@@ -285,7 +301,7 @@ function Draggable() {
 }
 
 export function Droppable({type, children, actionId = ''}: any) {
-  let ref = React.useRef();
+  let ref = React.useRef(null);
   let {dropProps, isDropTarget} = useDrop({
     ref,
     onDropEnter: action(`onDropEnter${actionId}`),
@@ -319,7 +335,7 @@ export function Droppable({type, children, actionId = ''}: any) {
 
 function DialogButton({children}) {
   let [isOpen, setOpen] = React.useState(false);
-  let ref = React.useRef();
+  let ref = React.useRef(null);
   let {dropProps, isDropTarget} = useDrop({
     ref: unwrapDOMRef(ref),
     onDropActivate() {
@@ -337,7 +353,7 @@ function DialogButton({children}) {
   );
 }
 
-function DraggableCollectionExample() {
+function DraggableCollectionExample(props) {
   let list = useListData({
     initialItems: [
       {id: 'foo', type: 'folder', text: 'Foo'},
@@ -357,7 +373,7 @@ function DraggableCollectionExample() {
   };
 
   return (
-    <DraggableCollection items={list.items} selectedKeys={list.selectedKeys} onSelectionChange={list.setSelectedKeys} onDragEnd={onDragEnd} onCut={onCut}>
+    <DraggableCollection items={list.items} selectedKeys={list.selectedKeys} onSelectionChange={list.setSelectedKeys} onDragEnd={onDragEnd} onCut={onCut} isDisabled={props.isDisabled}>
       {item => (
         <Item textValue={item.text}>
           {item.type === 'folder' && <Folder size="S" />}
@@ -369,12 +385,13 @@ function DraggableCollectionExample() {
 }
 
 function DraggableCollection(props) {
+  let {isDisabled} = props;
   let ref = React.useRef<HTMLDivElement>(null);
-  let state = useListState(props);
+  let state = useListState<ItemValue>(props);
   let gridState = useGridState({
     ...props,
     selectionMode: 'multiple',
-    collection: new GridCollection({
+    collection: React.useMemo(() => new GridCollection<ItemValue>({
       columnCount: 1,
       items: [...state.collection].map(item => ({
         ...item,
@@ -390,23 +407,25 @@ function DraggableCollection(props) {
           childNodes: []
         }]
       }))
-    })
+    }), [state.collection])
   });
 
   let preview = useRef(null);
   let dragState = useDraggableCollectionState({
+    isDisabled,
     collection: gridState.collection,
     selectionManager: gridState.selectionManager,
     getItems(keys) {
       return [...keys].map(key => {
-        let item = gridState.collection.getItem(key);
+        let item = gridState.collection.getItem(key)!;
 
+        // TODO why doesn't this work like DraggableCollection example?
         return {
           // @ts-ignore
           [item.value.type]: item.textValue,
           'text/plain': item.textValue
         };
-      });
+      }).filter(item => item != null);
     },
     preview,
     onDragStart: action('onDragStart'),
@@ -446,7 +465,7 @@ function DraggableCollection(props) {
               <div className={classNames(dndStyles, 'drag-handle')}>
                 <ShowMenu size="XS" />
               </div>
-              <span>{item.rendered}</span>
+              {item && <span>{item.rendered}</span>}
               {selectedKeys.size > 1 &&
                 <div className={classNames(dndStyles, 'badge')}>{selectedKeys.size}</div>
               }
@@ -459,8 +478,8 @@ function DraggableCollection(props) {
 }
 
 function DraggableCollectionItem({item, state, dragState, onCut}) {
-  let rowRef = React.useRef();
-  let cellRef = React.useRef();
+  let rowRef = React.useRef(null);
+  let cellRef = React.useRef(null);
   let cellNode = [...item.childNodes][0];
   let isSelected = state.selectionManager.isSelected(item.key);
 
@@ -480,7 +499,7 @@ function DraggableCollectionItem({item, state, dragState, onCut}) {
     onCut: () => onCut(dragState.getKeysForDrag(item.key))
   });
 
-  let buttonRef = React.useRef();
+  let buttonRef = React.useRef(null);
   let {buttonProps} = useButton({
     ...dragButtonProps,
     elementType: 'div'
@@ -512,3 +531,35 @@ function DraggableCollectionItem({item, state, dragState, onCut}) {
     </div>
   );
 }
+
+export const DraggableEnabledDisabledControl = {
+  render: (args) => (
+    <Flex direction="row" gap="size-200" alignItems="center" wrap>
+      <DraggableCollectionExample {...args} />
+      <DroppableListBoxExample />
+    </Flex>
+  ),
+  name: 'Draggable Enable/Disable control',
+  argTypes: {
+    isDisabled: {
+      control: 'boolean',
+      defaultValue: true
+    }
+  }
+};
+
+export const DroppableEnabledDisabledControl = {
+  render: (args) => (
+    <Flex direction="row" gap="size-200" alignItems="center" wrap>
+      <DraggableCollectionExample />
+      <DroppableListBoxExample {...args} />
+    </Flex>
+  ),
+  name: 'Droppable Enable/Disable control',
+  argTypes: {
+    isDisabled: {
+      control: 'boolean',
+      defaultValue: true
+    }
+  }
+};

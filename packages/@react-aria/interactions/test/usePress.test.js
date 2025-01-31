@@ -10,8 +10,9 @@
  * governing permissions and limitations under the License.
  */
 
-import {act, fireEvent, installMouseEvent, installPointerEvent, render} from '@react-spectrum/test-utils';
+import {act, fireEvent, installMouseEvent, installPointerEvent, render, waitFor} from '@react-spectrum/test-utils-internal';
 import {ActionButton} from '@react-spectrum/button';
+import {createPortal} from 'react-dom';
 import {Dialog, DialogTrigger} from '@react-spectrum/dialog';
 import MatchMediaMock from 'jest-matchmedia-mock';
 import {Provider} from '@react-spectrum/provider';
@@ -22,7 +23,7 @@ import {usePress} from '../';
 function Example(props) {
   let {elementType: ElementType = 'div', style, draggable, ...otherProps} = props;
   let {pressProps} = usePress(otherProps);
-  return <ElementType {...pressProps} style={style} tabIndex="0" draggable={draggable}>{ElementType !== 'input' ? 'test' : undefined}</ElementType>;
+  return <ElementType {...pressProps} style={style} tabIndex="0" draggable={draggable}>{ElementType !== 'input' ? props.children || 'test' : undefined}</ElementType>;
 }
 
 function pointerEvent(type, opts) {
@@ -53,7 +54,7 @@ describe('usePress', function () {
   describe('pointer events', function () {
     installPointerEvent();
 
-    it('should fire press events based on pointer events', function () {
+    it('should fire press events based on pointer events with pointerType=mouse', function () {
       let events = [];
       let addEvent = (e) => events.push(e);
       let res = render(
@@ -66,8 +67,21 @@ describe('usePress', function () {
       );
 
       let el = res.getByText('test');
-      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse'}));
+      fireEvent(el, pointerEvent('pointerover', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+
+      let shouldFireMouseEvents = fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+      expect(shouldFireMouseEvents).toBe(true);
+
+      let shouldFocus = fireEvent.mouseDown(el);
+      expect(shouldFocus).toBe(true);
+      act(() => el.focus());
+
       fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+      fireEvent.mouseUp(el);
+
+      let shouldClick = fireEvent.click(el);
+      expect(shouldClick).toBe(true);
+      fireEvent(el, pointerEvent('pointerout', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
 
       // How else to get the DOM node it renders the hook to?
       // let el = events[0].target;
@@ -79,7 +93,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -92,7 +108,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -101,7 +119,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -114,7 +134,267 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
+        }
+      ]);
+    });
+
+    it('should fire press events based on pointer events with pointerType=touch', function () {
+      let events = [];
+      let addEvent = (e) => events.push(e);
+      let res = render(
+        <Example
+          onPressStart={addEvent}
+          onPressEnd={addEvent}
+          onPressChange={pressed => addEvent({type: 'presschange', pressed})}
+          onPress={addEvent}
+          onPressUp={addEvent} />
+      );
+
+      // Touch devices fire events in a different sequence than mouse.
+      // mousedown and focus is delayed until after pointerup.
+      let el = res.getByText('test');
+      fireEvent(el, pointerEvent('pointerover', {pointerId: 1, pointerType: 'touch', clientX: 0, clientY: 0}));
+
+      let shouldFireCompatibilityEvents = fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'touch', clientX: 0, clientY: 0}));
+      expect(shouldFireCompatibilityEvents).toBe(true);
+
+      let shouldFocus = true;
+      shouldFocus = shouldFireCompatibilityEvents = fireEvent.touchStart(el, {targetTouches: [{identifier: 1, clientX: 0, clientY: 0}]});
+      expect(shouldFireCompatibilityEvents).toBe(true);
+      expect(shouldFocus).toBe(true);
+
+      fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+      fireEvent(el, pointerEvent('pointerout', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+
+      shouldFocus = fireEvent.touchEnd(el, {targetTouches: [{identifier: 1, clientX: 0, clientY: 0}]});
+      shouldFocus = fireEvent.mouseDown(el);
+      expect(shouldFocus).toBe(true);
+      act(() => el.focus());
+
+      fireEvent.mouseUp(el);
+      fireEvent.click(el);
+
+      expect(events).toEqual([
+        {
+          type: 'pressstart',
+          target: el,
+          pointerType: 'touch',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'presschange',
+          pressed: true
+        },
+        {
+          type: 'pressup',
+          target: el,
+          pointerType: 'touch',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'pressend',
+          target: el,
+          pointerType: 'touch',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'presschange',
+          pressed: false
+        },
+        {
+          type: 'press',
+          target: el,
+          pointerType: 'touch',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        }
+      ]);
+    });
+
+    it('should fire press events on long press even if onClick is not fired by the browser', function () {
+      let events = [];
+      let addEvent = (e) => events.push(e);
+      let res = render(
+        <Example
+          onPressStart={addEvent}
+          onPressEnd={addEvent}
+          onPressChange={pressed => addEvent({type: 'presschange', pressed})}
+          onPress={addEvent}
+          onPressUp={addEvent} />
+      );
+
+      let el = res.getByText('test');
+      fireEvent(el, pointerEvent('pointerover', {pointerId: 1, pointerType: 'touch', clientX: 0, clientY: 0}));
+
+      let shouldFireCompatibilityEvents = fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'touch', clientX: 0, clientY: 0}));
+      expect(shouldFireCompatibilityEvents).toBe(true);
+
+      shouldFireCompatibilityEvents = fireEvent.touchStart(el, {targetTouches: [{identifier: 1, clientX: 0, clientY: 0}]});
+      expect(shouldFireCompatibilityEvents).toBe(true);
+
+      fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+      fireEvent(el, pointerEvent('pointerout', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+
+      let shouldFocus = fireEvent.touchEnd(el, {targetTouches: [{identifier: 1, clientX: 0, clientY: 0}]});
+      expect(shouldFocus).toBe(true);
+
+      // Mouse events are not fired in this case, and the browser does not focus the element.
+      act(() => jest.advanceTimersByTime(50));
+      expect(document.activeElement).toBe(el);
+
+      expect(events).toEqual([
+        {
+          type: 'pressstart',
+          target: el,
+          pointerType: 'touch',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'presschange',
+          pressed: true
+        },
+        {
+          type: 'pressup',
+          target: el,
+          pointerType: 'touch',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'pressend',
+          target: el,
+          pointerType: 'touch',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'presschange',
+          pressed: false
+        },
+        {
+          type: 'press',
+          target: el,
+          pointerType: 'touch',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        }
+      ]);
+    });
+
+    it('should cancel press if onClick propagation is stopped', function () {
+      let events = [];
+      let addEvent = (e) => events.push(e);
+      let res = render(
+        <Example
+          onPressStart={addEvent}
+          onPressEnd={addEvent}
+          onPressChange={pressed => addEvent({type: 'presschange', pressed})}
+          onPress={addEvent}
+          onPressUp={addEvent}>
+          {/* eslint-disable-next-line */}
+          <div data-testid="inner" onClick={e => e.stopPropagation()} />
+        </Example>
+      );
+
+      let el = res.getByTestId('inner');
+      fireEvent(el, pointerEvent('pointerover', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+
+      let shouldFireMouseEvents = fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+      expect(shouldFireMouseEvents).toBe(true);
+
+      let shouldFocus = fireEvent.mouseDown(el);
+      expect(shouldFocus).toBe(true);
+      act(() => el.focus());
+
+      fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+      fireEvent.mouseUp(el);
+
+      let shouldClick = fireEvent.click(el);
+      expect(shouldClick).toBe(true);
+      fireEvent(el, pointerEvent('pointerout', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+
+      act(() => jest.advanceTimersByTime(50));
+
+      expect(events).toEqual([
+        {
+          type: 'pressstart',
+          target: el.parentElement,
+          pointerType: 'mouse',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'presschange',
+          pressed: true
+        },
+        {
+          type: 'pressup',
+          target: el.parentElement,
+          pointerType: 'mouse',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'pressend',
+          target: el.parentElement,
+          pointerType: 'mouse',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'presschange',
+          pressed: false
         }
       ]);
     });
@@ -132,10 +412,15 @@ describe('usePress', function () {
       );
 
       let el = res.getByText('test');
-      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse'}));
+      el.releasePointerCapture = jest.fn();
+      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+      expect(el.releasePointerCapture).toHaveBeenCalled();
       fireEvent(el, pointerEvent('pointermove', {pointerId: 1, pointerType: 'mouse', clientX: 100, clientY: 100}));
-      fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', clientX: 100, clientY: 100}));
+      // react listens for pointerout and pointerover instead of pointerleave and pointerenter...
+      fireEvent(el, pointerEvent('pointerout', {pointerId: 1, pointerType: 'mouse', clientX: 100, clientY: 100}));
+      fireEvent(document, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', clientX: 100, clientY: 100}));
       fireEvent(el, pointerEvent('pointermove', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+      fireEvent(el, pointerEvent('pointerover', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
 
       expect(events).toEqual([
         {
@@ -145,7 +430,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -158,7 +445,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 100,
+          y: 100
         },
         {
           type: 'presschange',
@@ -167,10 +456,14 @@ describe('usePress', function () {
       ]);
 
       events = [];
-      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse'}));
+      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
       fireEvent(el, pointerEvent('pointermove', {pointerId: 1, pointerType: 'mouse', clientX: 100, clientY: 100}));
+      // react listens for pointerout and pointerover instead of pointerleave and pointerenter...
+      fireEvent(el, pointerEvent('pointerout', {pointerId: 1, pointerType: 'mouse', clientX: 100, clientY: 100}));
       fireEvent(el, pointerEvent('pointermove', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+      fireEvent(el, pointerEvent('pointerover', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
       fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+      fireEvent.click(el);
 
       expect(events).toEqual([
         {
@@ -180,7 +473,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -193,7 +488,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 100,
+          y: 100
         },
         {
           type: 'presschange',
@@ -206,7 +503,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -219,7 +518,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -228,7 +529,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -241,7 +544,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -259,8 +564,8 @@ describe('usePress', function () {
       );
 
       let el = res.getByText('test');
-      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse'}));
-      fireEvent(el, pointerEvent('pointercancel', {pointerId: 1, pointerType: 'mouse'}));
+      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+      fireEvent(el, pointerEvent('pointercancel', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
 
       expect(events).toEqual([
         {
@@ -270,7 +575,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -283,7 +590,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -305,7 +614,7 @@ describe('usePress', function () {
       );
 
       let el = res.getByText('test');
-      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse'}));
+      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
       fireEvent(el, new MouseEvent('dragstart', {bubbles: true, cancelable: true, composed: true}));
 
       expect(events).toEqual([
@@ -316,7 +625,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -329,7 +640,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -352,9 +665,11 @@ describe('usePress', function () {
       );
 
       let el = res.getByText('test');
-      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse'}));
+      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
       fireEvent(el, pointerEvent('pointermove', {pointerId: 1, pointerType: 'mouse', clientX: 100, clientY: 100}));
+      fireEvent(el, pointerEvent('pointerout', {pointerId: 1, pointerType: 'mouse', clientX: 100, clientY: 100}));
       fireEvent(el, pointerEvent('pointermove', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+      fireEvent(el, pointerEvent('pointerover', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
 
       expect(events).toEqual([
         {
@@ -364,7 +679,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -377,7 +694,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 100,
+          y: 100
         },
         {
           type: 'presschange',
@@ -399,8 +718,9 @@ describe('usePress', function () {
       );
 
       let el = res.getByText('test');
-      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', shiftKey: true}));
+      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', shiftKey: true, clientX: 0, clientY: 0}));
       fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', ctrlKey: true, clientX: 0, clientY: 0}));
+      fireEvent.click(el, {ctrlKey: true});
 
       // How else to get the DOM node it renders the hook to?
       // let el = events[0].target;
@@ -412,7 +732,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: true,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -425,7 +747,9 @@ describe('usePress', function () {
           ctrlKey: true,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -434,7 +758,9 @@ describe('usePress', function () {
           ctrlKey: true,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -447,7 +773,9 @@ describe('usePress', function () {
           ctrlKey: true,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -467,6 +795,7 @@ describe('usePress', function () {
       let el = res.getByText('test');
       fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', button: 1}));
       fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', button: 1, clientX: 0, clientY: 0}));
+      fireEvent.click(el, {button: 1});
       expect(events).toEqual([]);
     });
 
@@ -481,58 +810,6 @@ describe('usePress', function () {
       expect(document.activeElement).not.toBe(el);
     });
 
-    it('should focus the target on click by default', function () {
-      let res = render(
-        <Example />
-      );
-
-      let el = res.getByText('test');
-      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse'}));
-      fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
-      expect(document.activeElement).toBe(el);
-    });
-
-    it('should prevent default on pointerdown and mousedown by default', function () {
-      let res = render(
-        <Example />
-      );
-
-      let el = res.getByText('test');
-      let allowDefault = fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse'}));
-      expect(allowDefault).toBe(false);
-
-      allowDefault = fireEvent.mouseDown(el);
-      expect(allowDefault).toBe(false);
-    });
-
-    it('should still prevent default when pressing on a non draggable + pressable item in a draggable container', function () {
-      let res = render(
-        <div draggable="true">
-          <Example />
-        </div>
-      );
-
-      let el = res.getByText('test');
-      let allowDefault = fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse'}));
-      expect(allowDefault).toBe(false);
-
-      allowDefault = fireEvent.mouseDown(el);
-      expect(allowDefault).toBe(false);
-    });
-
-    it('should not prevent default when pressing on a draggable item', function () {
-      let res = render(
-        <Example draggable="true" />
-      );
-
-      let el = res.getByText('test');
-      let allowDefault = fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse'}));
-      expect(allowDefault).toBe(true);
-
-      allowDefault = fireEvent.mouseDown(el);
-      expect(allowDefault).toBe(true);
-    });
-
     it('should ignore virtual pointer events', function () {
       let events = [];
       let addEvent = (e) => events.push(e);
@@ -545,7 +822,7 @@ describe('usePress', function () {
       );
 
       let el = res.getByText('test');
-      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', width: 0, height: 0}));
+      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', width: 0, height: 0, clientX: 0, clientY: 0}));
       fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', width: 0, height: 0, clientX: 0, clientY: 0}));
 
       expect(events).toEqual([]);
@@ -559,7 +836,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressup',
@@ -568,7 +847,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -577,7 +858,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'press',
@@ -586,9 +869,79 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
+    });
+
+    it('should not ignore virtual pointer events on android ', function () {
+      let uaMock = jest.spyOn(navigator, 'userAgent', 'get').mockImplementation(() => 'Android');
+
+      let events = [];
+      let addEvent = (e) => events.push(e);
+      let res = render(
+        <Example
+          onPressStart={addEvent}
+          onPressEnd={addEvent}
+          onPress={addEvent}
+          onPressUp={addEvent} />
+      );
+
+      let el = res.getByText('test');
+      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', width: 0, height: 0, clientX: 0, clientY: 0}));
+      fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', width: 0, height: 0, clientX: 0, clientY: 0}));
+      fireEvent.click(el);
+
+      expect(events).toEqual([
+        {
+          type: 'pressstart',
+          target: el,
+          pointerType: 'mouse',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'pressup',
+          target: el,
+          pointerType: 'mouse',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'pressend',
+          target: el,
+          pointerType: 'mouse',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'press',
+          target: el,
+          pointerType: 'mouse',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        }
+      ]);
+
+      uaMock.mockRestore();
     });
 
     it('should detect Android TalkBack double tap', function () {
@@ -619,7 +972,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressup',
@@ -628,7 +983,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -637,7 +994,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'press',
@@ -646,7 +1005,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -679,8 +1040,22 @@ describe('usePress', function () {
       fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0, width: 20, height: 20}));
       fireEvent(el, pointerEvent('pointermove', {pointerId: 1, pointerType: 'mouse', clientX: 10, clientY: 10, width: 20, height: 20}));
       fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', clientX: 10, clientY: 10, width: 20, height: 20}));
+      fireEvent.click(el);
 
       expect(spy).toHaveBeenCalled();
+    });
+
+    it('should add/remove user-select: none to the element on pointer down/up', function () {
+      let res = render(
+        <Example />
+      );
+
+      let el = res.getByText('test');
+      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse'}));
+      expect(el).toHaveStyle('user-select: none');
+      fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse'}));
+      fireEvent.click(el);
+      expect(el).not.toHaveStyle('user-select: none');
     });
   });
 
@@ -698,9 +1073,12 @@ describe('usePress', function () {
       );
 
       let el = res.getByText('test');
-      fireEvent.mouseDown(el, {detail: 1});
+      let shouldFocus = fireEvent.mouseDown(el, {detail: 1});
+      expect(shouldFocus).toBe(true);
+      act(() => el.focus());
       fireEvent.mouseUp(el, {detail: 1});
-      fireEvent.click(el, {detail: 1});
+      let shouldClick = fireEvent.click(el, {detail: 1});
+      expect(shouldClick).toBe(true);
 
       expect(events).toEqual([
         {
@@ -710,7 +1088,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -723,7 +1103,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -732,7 +1114,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -745,7 +1129,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -776,7 +1162,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -789,7 +1177,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -812,7 +1202,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -825,7 +1217,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -838,7 +1232,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -851,7 +1247,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -860,7 +1258,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -873,7 +1273,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -904,7 +1306,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -917,7 +1321,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -941,7 +1347,7 @@ describe('usePress', function () {
       let el = res.getByText('test');
       fireEvent.mouseDown(el, {detail: 1, metaKey: true});
       fireEvent.mouseUp(el, {detail: 1, shiftKey: true});
-      fireEvent.click(el, {detail: 1});
+      fireEvent.click(el, {detail: 1, shiftKey: true});
 
       expect(events).toEqual([
         {
@@ -951,7 +1357,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: true,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -964,7 +1372,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: true,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -973,7 +1383,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: true,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -986,7 +1398,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: true,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -1030,44 +1444,14 @@ describe('usePress', function () {
       );
 
       let el = res.getByText('test');
-      fireEvent.mouseDown(el);
+      let shouldFocus = fireEvent.mouseDown(el);
+      if (shouldFocus) {
+        act(() => el.focus());
+      }
       fireEvent.mouseUp(el);
       fireEvent.click(el);
 
       expect(document.activeElement).toBe(el);
-    });
-
-    it('should prevent default on mousedown by default', function () {
-      let res = render(
-        <Example />
-      );
-
-      let el = res.getByText('test');
-      let allowDefault = fireEvent.mouseDown(el);
-      expect(allowDefault).toBe(false);
-    });
-
-    it('should still prevent default when pressing on a non draggable + pressable item in a draggable container', function () {
-      let res = render(
-        <div draggable="true">
-          <Example />
-        </div>
-      );
-
-      let el = res.getByText('test');
-      let allowDefault = fireEvent.mouseDown(el);
-      expect(allowDefault).toBe(false);
-    });
-
-
-    it('should not prevent default when pressing on a draggable item', function () {
-      let res = render(
-        <Example draggable="true" />
-      );
-
-      let el = res.getByText('test');
-      let allowDefault = fireEvent.mouseDown(el);
-      expect(allowDefault).toBe(true);
     });
 
     it('should cancel press on dragstart', function () {
@@ -1094,7 +1478,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1107,7 +1493,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1142,7 +1530,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1155,7 +1545,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -1164,7 +1556,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1177,7 +1571,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -1207,7 +1603,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1220,7 +1618,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1242,7 +1642,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1255,7 +1657,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1268,7 +1672,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1281,7 +1687,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -1290,7 +1698,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1303,7 +1713,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -1334,7 +1746,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1347,7 +1761,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1387,7 +1803,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1400,7 +1818,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1413,7 +1833,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1426,7 +1848,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -1435,7 +1859,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1448,7 +1874,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -1478,7 +1906,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1491,7 +1921,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1525,7 +1957,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1538,7 +1972,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1578,7 +2014,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1591,7 +2029,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -1600,7 +2040,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1613,7 +2055,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -1642,7 +2086,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1655,7 +2101,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1682,8 +2130,11 @@ describe('usePress', function () {
       );
 
       let el = res.getByText('test');
-      fireEvent.touchStart(el, {targetTouches: [{identifier: 1, clientX: 0, clientY: 0}]});
-      fireEvent.touchEnd(el, {changedTouches: [{identifier: 1, clientX: 0, clientY: 0}]});
+      let shouldFocus = fireEvent.touchStart(el, {targetTouches: [{identifier: 1, clientX: 0, clientY: 0}]});
+      let shouldFocus2 = fireEvent.touchEnd(el, {changedTouches: [{identifier: 1, clientX: 0, clientY: 0}]});
+      if (shouldFocus && shouldFocus2) {
+        act(() => el.focus());
+      }
 
       expect(document.activeElement).toBe(el);
     });
@@ -1717,7 +2168,6 @@ describe('usePress', function () {
       let el = getByText('test');
       fireEvent.keyDown(el, {key: ' '});
       fireEvent.keyUp(el, {key: ' '});
-
       expect(events).toEqual([
         {
           type: 'pressstart',
@@ -1726,7 +2176,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1739,7 +2191,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -1748,7 +2202,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1761,7 +2217,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -1788,49 +2246,54 @@ describe('usePress', function () {
       // Space key handled should do nothing on a link
       expect(events).toEqual([]);
 
-      fireEvent.keyDown(el, {key: 'Enter'});
+      let shouldContinue = fireEvent.keyDown(el, {key: 'Enter'});
+      if (shouldContinue) {
+        // Browser fires click event as default action of keydown event.
+        fireEvent.click(el);
+      }
       fireEvent.keyUp(el, {key: 'Enter'});
-
-      // Enter key should handled natively
-      expect(events).toEqual([]);
-
-      fireEvent.click(el);
 
       // Click event, which is called when Enter key on a link is handled natively, should trigger a click.
       expect(events).toEqual([
         {
-          type: 'click'
-        },
-        {
           type: 'pressstart',
           target: el,
-          pointerType: 'virtual',
+          pointerType: 'keyboard',
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
           pressed: true
         },
         {
+          type: 'click'
+        },
+        {
           type: 'pressup',
           target: el,
-          pointerType: 'virtual',
+          pointerType: 'keyboard',
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
           target: el,
-          pointerType: 'virtual',
+          pointerType: 'keyboard',
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1839,11 +2302,13 @@ describe('usePress', function () {
         {
           type: 'press',
           target: el,
-          pointerType: 'virtual',
+          pointerType: 'keyboard',
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -1881,7 +2346,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1894,7 +2361,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -1903,7 +2372,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1916,15 +2387,14 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
-        },
-        {
-          type: 'click'
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
 
-    it('should explicitly call click method, but not fire press events, when Space key is triggered on a link with href and role="button"', function () {
+    it('should explicitly call click method when Space key is triggered on a link with href and role="button"', function () {
       let events = [];
       let addEvent = (e) => events.push(e);
       let {getByText} = render(
@@ -1942,12 +2412,6 @@ describe('usePress', function () {
 
       let el = getByText('test');
 
-      // Enter key should handled natively
-      fireEvent.keyDown(el, {key: 'Enter'});
-      fireEvent.keyUp(el, {key: 'Enter'});
-
-      expect(events).toEqual([]);
-
       // Space key handled by explicitly calling click
       fireEvent.keyDown(el, {key: ' '});
       fireEvent.keyUp(el, {key: ' '});
@@ -1960,7 +2424,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1973,7 +2439,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -1982,7 +2450,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -1995,7 +2465,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'click'
@@ -2027,7 +2499,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: true,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -2040,7 +2514,9 @@ describe('usePress', function () {
           ctrlKey: true,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -2049,7 +2525,9 @@ describe('usePress', function () {
           ctrlKey: true,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -2062,7 +2540,87 @@ describe('usePress', function () {
           ctrlKey: true,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
+        }
+      ]);
+    });
+
+    it('should fire press events when Meta key is held to work around macOS bug', function () {
+      let events = [];
+      let addEvent = (e) => events.push(e);
+      let res = render(
+        <Example
+          onPressStart={addEvent}
+          onPressEnd={addEvent}
+          onPressChange={pressed => addEvent({type: 'presschange', pressed})}
+          onPress={addEvent}
+          onPressUp={addEvent} />
+      );
+
+      let spy = jest.spyOn(window.navigator, 'platform', 'get').mockImplementation(() => 'Mac');
+
+      let el = res.getByText('test');
+      fireEvent.keyDown(el, {key: 'Meta'});
+      fireEvent.keyDown(el, {key: 'Enter', metaKey: true});
+      // macOS doesn't fire keyup events while Meta key is held.
+      // we simulate this when the Meta key itself is released.
+      fireEvent.keyUp(el, {key: 'Meta'});
+      spy.mockRestore();
+
+      expect(events).toEqual([
+        {
+          type: 'pressstart',
+          target: el,
+          pointerType: 'keyboard',
+          ctrlKey: false,
+          metaKey: true,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'presschange',
+          pressed: true
+        },
+        {
+          type: 'pressup',
+          target: el,
+          pointerType: 'keyboard',
+          ctrlKey: false,
+          metaKey: true,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'pressend',
+          target: el,
+          pointerType: 'keyboard',
+          ctrlKey: false,
+          metaKey: true,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'presschange',
+          pressed: false
+        },
+        {
+          type: 'press',
+          target: el,
+          pointerType: 'keyboard',
+          ctrlKey: false,
+          metaKey: true,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -2095,7 +2653,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -2108,7 +2668,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -2123,7 +2685,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -2136,7 +2700,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -2145,7 +2711,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -2158,7 +2726,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -2213,7 +2783,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -2231,7 +2803,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -2244,7 +2818,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -2253,7 +2829,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -2266,7 +2844,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -2296,7 +2876,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -2309,7 +2891,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'pressend',
@@ -2318,7 +2902,9 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
         },
         {
           type: 'presschange',
@@ -2331,7 +2917,43 @@ describe('usePress', function () {
           ctrlKey: false,
           metaKey: false,
           shiftKey: false,
-          altKey: false
+          altKey: false,
+          x: 0,
+          y: 0
+        }
+      ]);
+    });
+
+    it('should ignore synthetic events fired during an onPressUp event', function () {
+      let events = [];
+      let addEvent = (e) => events.push(e);
+      let {getByText} = render(
+        <Example
+          onPressStart={addEvent}
+          onPressEnd={addEvent}
+          onPressChange={pressed => addEvent({type: 'presschange', pressed})}
+          onPress={addEvent}
+          onPressUp={e => {
+            addEvent(e);
+            e.target.click();
+          }} />
+      );
+
+      let el = getByText('test');
+      // no on mouse down because this is simulating it coming from another element.
+      fireEvent.mouseUp(el, {detail: 1});
+
+      expect(events).toEqual([
+        {
+          type: 'pressup',
+          target: el,
+          pointerType: 'mouse',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
         }
       ]);
     });
@@ -2346,17 +2968,6 @@ describe('usePress', function () {
     fireEvent.click(el);
 
     expect(document.activeElement).not.toBe(el);
-  });
-
-  it('should focus the target on virtual click by default', function () {
-    let {getByText} = render(
-      <Example />
-    );
-
-    let el = getByText('test');
-    fireEvent.click(el);
-
-    expect(document.activeElement).toBe(el);
   });
 
   describe('disable text-selection when pressed', function () {
@@ -2678,6 +3289,89 @@ describe('usePress', function () {
     });
   });
 
+  describe('event bubbling', () => {
+    function Pressable(props) {
+      let {pressProps} = usePress(props);
+      return (
+        <div {...pressProps} data-testid={props['data-testid']}>
+          {props.children}
+        </div>
+      );
+    }
+
+    describe.each`
+      type                | prepare               | actions
+      ${'Mouse Events'}   | ${installMouseEvent}  | ${[
+        (el) => fireEvent.mouseDown(el, {button: 0}),
+        (el) => fireEvent.mouseUp(el, {button: 0})
+      ]}
+      ${'Pointer Events'} | ${installPointerEvent}| ${[
+        (el) => fireEvent.pointerDown(el, {button: 0, pointerId: 1}),
+        (el) => fireEvent.pointerUp(el, {button: 0, pointerId: 1})
+      ]}
+      ${'Touch Events'}   | ${() => {}}           | ${[
+        (el) => fireEvent.touchStart(el, {targetTouches: [{identifier: 1}]}),
+        (el) => fireEvent.touchEnd(el, {changedTouches: [{identifier: 1}]})
+      ]}
+    `('$type', ({actions: [start, end], prepare}) => {
+      prepare();
+
+      it('should stop propagation by default', () => {
+        let outerPressMock = jest.fn();
+        let innerPressMock = jest.fn();
+        let res = render(
+          <Pressable
+            onPressStart={outerPressMock}
+            onPressEnd={outerPressMock}
+            onPress={outerPressMock}>
+            <Pressable
+              data-testid="test"
+              onPressStart={innerPressMock}
+              onPressEnd={innerPressMock}
+              onPress={innerPressMock}>
+              inner
+            </Pressable>
+          </Pressable>
+        );
+
+        let el = res.getByTestId('test');
+        start(el);
+        end(el);
+        fireEvent.click(el);
+        expect(outerPressMock.mock.calls).toHaveLength(0);
+        expect(innerPressMock.mock.calls).toHaveLength(3);
+      });
+
+      it('should allow propagation if continuePropagation is called', () => {
+        let outerPressMock = jest.fn();
+        let innerPressMock = jest.fn().mockImplementation(e => e.continuePropagation());
+        let res = render(
+          <Pressable
+            onPressStart={outerPressMock}
+            onPressEnd={outerPressMock}
+            onPress={outerPressMock}
+            onPressUp={outerPressMock}>
+            <Pressable
+              data-testid="test"
+              onPressStart={innerPressMock}
+              onPressEnd={innerPressMock}
+              onPress={innerPressMock}
+              onPressUp={innerPressMock}>
+              inner
+            </Pressable>
+          </Pressable>
+        );
+
+        let el = res.getByTestId('test');
+        start(el);
+        end(el);
+        fireEvent.click(el);
+        expect(outerPressMock.mock.calls).toHaveLength(4);
+        expect(innerPressMock.mock.calls).toHaveLength(4);
+      });
+    });
+  });
+
   describe('portal event bubbling', () => {
     function PortalExample(props) {
       let {elementType: ElementType = 'div', ...otherProps} = props;
@@ -2730,7 +3424,7 @@ describe('usePress', function () {
         (el) => fireEvent.pointerUp(el, {button: 0, pointerId: 1})
       ]}
       ${'Touch Events'}   | ${() => {}}           | ${[
-        (el) => fireEvent.touchStart(el, {changedTouches: [{identifier: 1}]}),
+        (el) => fireEvent.touchStart(el, {targetTouches: [{identifier: 1}]}),
         (el) => fireEvent.touchEnd(el, {changedTouches: [{identifier: 1}]})
       ]}
     `('$type', ({actions: [start, end], prepare}) => {
@@ -2759,5 +3453,650 @@ describe('usePress', function () {
         expect(pressMock.mock.calls).toHaveLength(0);
       });
     });
+  });
+
+  describe('Owner document and window', () => {
+    let iframe;
+    let iframeRoot;
+    beforeEach(() => {
+      iframe = document.createElement('iframe');
+      window.document.body.appendChild(iframe);
+      iframeRoot = iframe.contentWindow.document.createElement('div');
+      iframe.contentWindow.document.body.appendChild(iframeRoot);
+    });
+
+    afterEach(() => {
+      iframe.remove();
+    });
+
+    const IframeExample = (props) => {
+      return createPortal(<Example
+        {...props}
+        data-testid="example" />, iframeRoot);
+    };
+
+    describe('Pointer events', () => {
+      installPointerEvent();
+
+      test('should fire press events based on pointer events', async () => {
+        let events = [];
+        let addEvent = (e) => events.push(e);
+        render(
+          <IframeExample
+            onPressStart={addEvent}
+            onPressEnd={addEvent}
+            onPressChange={pressed => addEvent({type: 'presschange', pressed})}
+            onPress={addEvent}
+            onPressUp={addEvent} />
+        );
+
+        await waitFor(() => {
+          expect(document.querySelector('iframe').contentWindow.document.body.querySelector('div[data-testid="example"]')).toBeTruthy();
+        });
+
+        const el = document.querySelector('iframe').contentWindow.document.body.querySelector('div[data-testid="example"]');
+        fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+        fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', clientX: 0, clientY: 0}));
+        fireEvent.click(el);
+
+        expect(events).toEqual([
+          {
+            type: 'pressstart',
+            target: el,
+            pointerType: 'mouse',
+            ctrlKey: false,
+            metaKey: false,
+            shiftKey: false,
+            altKey: false,
+            x: 0,
+            y: 0
+          },
+          {
+            type: 'presschange',
+            pressed: true
+          },
+          {
+            type: 'pressup',
+            target: el,
+            pointerType: 'mouse',
+            ctrlKey: false,
+            metaKey: false,
+            shiftKey: false,
+            altKey: false,
+            x: 0,
+            y: 0
+          },
+          {
+            type: 'pressend',
+            target: el,
+            pointerType: 'mouse',
+            ctrlKey: false,
+            metaKey: false,
+            shiftKey: false,
+            altKey: false,
+            x: 0,
+            y: 0
+          },
+          {
+            type: 'presschange',
+            pressed: false
+          },
+          {
+            type: 'press',
+            target: el,
+            pointerType: 'mouse',
+            ctrlKey: false,
+            metaKey: false,
+            shiftKey: false,
+            altKey: false,
+            x: 0,
+            y: 0
+          }
+        ]);
+      });
+    });
+
+    test('should handle keyboard events', async function () {
+      let events = [];
+      let addEvent = (e) => events.push(e);
+      render(
+        <IframeExample
+          onPressStart={addEvent}
+          onPressEnd={addEvent}
+          onPressChange={pressed => addEvent({type: 'presschange', pressed})}
+          onPress={addEvent}
+          onPressUp={addEvent} />
+      );
+
+      await waitFor(() => {
+        expect(iframe.contentWindow.document.body.querySelector('div[data-testid="example"]')).toBeTruthy();
+      });
+
+      const el = iframe.contentWindow.document.body.querySelector('div[data-testid="example"]');
+      fireEvent.keyDown(el, {key: ' '});
+      fireEvent.keyUp(el, {key: ' '});
+
+      expect(events).toEqual([
+        {
+          type: 'pressstart',
+          target: el,
+          pointerType: 'keyboard',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'presschange',
+          pressed: true
+        },
+        {
+          type: 'pressup',
+          target: el,
+          pointerType: 'keyboard',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'pressend',
+          target: el,
+          pointerType: 'keyboard',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'presschange',
+          pressed: false
+        },
+        {
+          type: 'press',
+          target: el,
+          pointerType: 'keyboard',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        }
+      ]);
+    });
+
+    describe('Mouse events', () => {
+      installMouseEvent();
+
+      test('should fire press events based on mouse events', async () => {
+        let events = [];
+        let addEvent = (e) => events.push(e);
+        render(
+          <IframeExample
+            onPressStart={addEvent}
+            onPressEnd={addEvent}
+            onPressChange={pressed => addEvent({type: 'presschange', pressed})}
+            onPress={addEvent}
+            onPressUp={addEvent} />
+        );
+
+        await waitFor(() => {
+          expect(document.querySelector('iframe').contentWindow.document.body.querySelector('div[data-testid="example"]')).toBeTruthy();
+        });
+
+        const el = document.querySelector('iframe').contentWindow.document.body.querySelector('div[data-testid="example"]');
+        fireEvent.mouseDown(el, {detail: 1});
+        fireEvent.mouseUp(el, {detail: 1});
+        fireEvent.click(el, {detail: 1});
+
+        expect(events).toEqual([
+          {
+            type: 'pressstart',
+            target: el,
+            pointerType: 'mouse',
+            ctrlKey: false,
+            metaKey: false,
+            shiftKey: false,
+            altKey: false,
+            x: 0,
+            y: 0
+          },
+          {
+            type: 'presschange',
+            pressed: true
+          },
+          {
+            type: 'pressup',
+            target: el,
+            pointerType: 'mouse',
+            ctrlKey: false,
+            metaKey: false,
+            shiftKey: false,
+            altKey: false,
+            x: 0,
+            y: 0
+          },
+          {
+            type: 'pressend',
+            target: el,
+            pointerType: 'mouse',
+            ctrlKey: false,
+            metaKey: false,
+            shiftKey: false,
+            altKey: false,
+            x: 0,
+            y: 0
+          },
+          {
+            type: 'presschange',
+            pressed: false
+          },
+          {
+            type: 'press',
+            target: el,
+            pointerType: 'mouse',
+            ctrlKey: false,
+            metaKey: false,
+            shiftKey: false,
+            altKey: false,
+            x: 0,
+            y: 0
+          }
+        ]);
+      });
+
+    });
+
+    test('should fire press events events for virtual click events from screen readers', async () => {
+      let events = [];
+      let addEvent = (e) => events.push(e);
+      render(
+        <IframeExample
+          onPressStart={addEvent}
+          onPressEnd={addEvent}
+          onPress={addEvent}
+          onPressUp={addEvent} />
+      );
+
+      await waitFor(() => {
+        expect(document.querySelector('iframe').contentWindow.document.body.querySelector('div[data-testid="example"]')).toBeTruthy();
+      });
+
+      const el = document.querySelector('iframe').contentWindow.document.body.querySelector('div[data-testid="example"]');
+
+      fireEvent.click(el);
+      expect(events).toEqual([
+        {
+          type: 'pressstart',
+          target: el,
+          pointerType: 'virtual',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'pressup',
+          target: el,
+          pointerType: 'virtual',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'pressend',
+          target: el,
+          pointerType: 'virtual',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        },
+        {
+          type: 'press',
+          target: el,
+          pointerType: 'virtual',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 0,
+          y: 0
+        }
+      ]);
+    });
+  });
+});
+
+
+describe('coordinates', () => {
+  beforeAll(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    act(() => {jest.runAllTimers();});
+  });
+
+  const DEFAULT_SIZE = 100;
+  const getBoundingClientRect = ({
+    width = DEFAULT_SIZE,
+    height = DEFAULT_SIZE,
+    x = 0,
+    y = 0,
+    top = 0,
+    left = 0,
+    bottom = y + DEFAULT_SIZE,
+    right = x + DEFAULT_SIZE
+  }) => ({
+    width,
+    height,
+    x,
+    y,
+    top,
+    left,
+    bottom,
+    right,
+    toJSON() { return this; }
+  });
+  describe('pointer', () => {
+    installPointerEvent();
+
+    it('mouse pointer events should have coordinates', function () {
+      jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+        () => getBoundingClientRect({})
+      );
+      let events = [];
+      let addEvent = (e) => events.push(e);
+      let res = render(
+        <Example
+          onPressStart={addEvent}
+          onPressEnd={addEvent}
+          onPressChange={pressed => addEvent({type: 'presschange', pressed})}
+          onPress={addEvent}
+          onPressUp={addEvent} />
+      );
+
+      let el = res.getByText('test');
+      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'mouse', clientX: 25, clientY: 0}));
+      fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'mouse', clientX: 75, clientY: 75}));
+      fireEvent.click(el, {clientX: 75, clientY: 75});
+
+      // How else to get the DOM node it renders the hook to?
+      // let el = events[0].target;
+      expect(events).toEqual([
+        {
+          type: 'pressstart',
+          target: el,
+          pointerType: 'mouse',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 25,
+          y: 0
+        },
+        {
+          type: 'presschange',
+          pressed: true
+        },
+        {
+          type: 'pressup',
+          target: el,
+          pointerType: 'mouse',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 75,
+          y: 75
+        },
+        {
+          type: 'pressend',
+          target: el,
+          pointerType: 'mouse',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 75,
+          y: 75
+        },
+        {
+          type: 'presschange',
+          pressed: false
+        },
+        {
+          type: 'press',
+          target: el,
+          pointerType: 'mouse',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 75,
+          y: 75
+        }
+      ]);
+    });
+
+    it('pointer touch events should have coordinates', function () {
+      jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+        () => getBoundingClientRect({})
+      );
+      let events = [];
+      let addEvent = (e) => events.push(e);
+      let res = render(
+        <Example
+          onPressStart={addEvent}
+          onPressEnd={addEvent}
+          onPressChange={pressed => addEvent({type: 'presschange', pressed})}
+          onPress={addEvent}
+          onPressUp={addEvent} />
+      );
+
+      let el = res.getByText('test');
+      fireEvent(el, pointerEvent('pointerdown', {pointerId: 1, pointerType: 'touch', clientX: 25, clientY: 0}));
+      fireEvent(el, pointerEvent('pointerup', {pointerId: 1, pointerType: 'touch', clientX: 75, clientY: 75}));
+      fireEvent.click(el, {clientX: 75, clientY: 75});
+
+      expect(events).toEqual([
+        {
+          type: 'pressstart',
+          target: el,
+          pointerType: 'touch',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 25,
+          y: 0
+        },
+        {
+          type: 'presschange',
+          pressed: true
+        },
+        {
+          type: 'pressup',
+          target: el,
+          pointerType: 'touch',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 75,
+          y: 75
+        },
+        {
+          type: 'pressend',
+          target: el,
+          pointerType: 'touch',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 75,
+          y: 75
+        },
+        {
+          type: 'presschange',
+          pressed: false
+        },
+        {
+          type: 'press',
+          target: el,
+          pointerType: 'touch',
+          ctrlKey: false,
+          metaKey: false,
+          shiftKey: false,
+          altKey: false,
+          x: 75,
+          y: 75
+        }
+      ]);
+    });
+  });
+
+  it('should return the center of the element when keyboard pressed', function () {
+    jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+      () => getBoundingClientRect({})
+    );
+    let events = [];
+    let addEvent = (e) => events.push(e);
+    let {getByText} = render(
+      <Example
+        onPressStart={addEvent}
+        onPressEnd={addEvent}
+        onPressChange={pressed => addEvent({type: 'presschange', pressed})}
+        onPress={addEvent}
+        onPressUp={addEvent} />
+    );
+
+    let el = getByText('test');
+    fireEvent.keyDown(el, {key: ' '});
+    fireEvent.keyUp(el, {key: ' '});
+    expect(events).toEqual([
+      {
+        type: 'pressstart',
+        target: el,
+        pointerType: 'keyboard',
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        altKey: false,
+        x: 50,
+        y: 50
+      },
+      {
+        type: 'presschange',
+        pressed: true
+      },
+      {
+        type: 'pressup',
+        target: el,
+        pointerType: 'keyboard',
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        altKey: false,
+        x: 50,
+        y: 50
+      },
+      {
+        type: 'pressend',
+        target: el,
+        pointerType: 'keyboard',
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        altKey: false,
+        x: 50,
+        y: 50
+      },
+      {
+        type: 'presschange',
+        pressed: false
+      },
+      {
+        type: 'press',
+        target: el,
+        pointerType: 'keyboard',
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        altKey: false,
+        x: 50,
+        y: 50
+      }
+    ]);
+  });
+
+  it('cancel from scroll events should have coordinates', function () {
+    jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+      () => getBoundingClientRect({})
+    );
+    let events = [];
+    let addEvent = (e) => events.push(e);
+    let res = render(
+      <Example
+        onPressStart={addEvent}
+        onPressEnd={addEvent}
+        onPressChange={pressed => addEvent({type: 'presschange', pressed})}
+        onPress={addEvent}
+        onPressUp={addEvent} />
+    );
+
+    let el = res.getByText('test');
+    fireEvent.touchStart(el, {targetTouches: [{identifier: 1, clientX: 25, clientY: 25}]});
+    fireEvent.scroll(document.body);
+    fireEvent.touchEnd(el, {changedTouches: [{identifier: 1, clientX: 25, clientY: 0}]});
+
+    expect(events).toEqual([
+      {
+        type: 'pressstart',
+        target: el,
+        pointerType: 'touch',
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        altKey: false,
+        x: 25,
+        y: 25
+      },
+      {
+        type: 'presschange',
+        pressed: true
+      },
+      {
+        type: 'pressend',
+        target: el,
+        pointerType: 'touch',
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        altKey: false,
+        // center because the event was canceled by scroll, not by the touchEnd
+        x: 50,
+        y: 50
+      },
+      {
+        type: 'presschange',
+        pressed: false
+      }
+    ]);
   });
 });

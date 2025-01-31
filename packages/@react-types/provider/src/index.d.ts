@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-import {DOMProps, StyleProps, ValidationState} from '@react-types/shared';
+import {DOMProps, Href, RouterOptions, StyleProps, ValidationState} from '@react-types/shared';
 import {ReactNode} from 'react';
 
 export type ColorScheme = 'light' | 'dark';
@@ -56,6 +56,11 @@ interface ContextProps {
   validationState?: ValidationState
 }
 
+interface Router {
+  navigate: (path: string, routerOptions: RouterOptions | undefined) => void,
+  useHref?: (href: Href) => string
+}
+
 export interface ProviderProps extends ContextProps, DOMProps, StyleProps {
   /** The content of the Provider. */
   children: ReactNode,
@@ -88,7 +93,11 @@ export interface ProviderProps extends ContextProps, DOMProps, StyleProps {
    * Do not use `base` property.
    * @default {S:380,M:768,L:1024}
    */
-  breakpoints?: Breakpoints
+  breakpoints?: Breakpoints,
+  /**
+   * Provides a client side router to all nested React Spectrum links to enable client side navigation.
+   */
+  router?: Router
 }
 
 export interface ProviderContext extends ContextProps {

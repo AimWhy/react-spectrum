@@ -12,6 +12,7 @@
 
 import {ComponentMeta, ComponentStoryObj} from '@storybook/react';
 import {Meter} from '../';
+import {NumberFormatOptions} from '@internationalized/number';
 import React from 'react';
 
 type MeterStory = ComponentStoryObj<typeof Meter>;
@@ -19,13 +20,13 @@ type MeterStory = ComponentStoryObj<typeof Meter>;
 const formatOptions = {
   style: 'currency',
   currency: 'JPY'
-};
+} satisfies NumberFormatOptions;
 
 export default {
   title: 'Meter',
   component: Meter,
   args: {
-    variant: 'positive'
+    variant: 'informative'
   },
   argTypes: {
     value: {
@@ -38,7 +39,7 @@ export default {
     variant: {
       control: {
         type: 'radio',
-        options: ['positive', 'warning', 'critical']
+        options: ['informative', 'positive', 'warning', 'critical']
       }
     },
     size: {
@@ -59,25 +60,37 @@ export default {
 
 export const Default: MeterStory = {
   args: {label: 'Meter', value: 50},
-  name: 'value: 50'
+  name: 'value: 50',
+  parameters: {
+    a11y: {
+      config: {
+        // Erroring attributes work for meter and/or progressbar, but combined role confuses aXe
+        rules: [{id: 'aria-allowed-attr', selector: '*:not([role="meter progressbar"])'}]
+      }
+    }
+  }
 };
 
 export const ValueLabel1Of4: MeterStory = {
+  ...Default,
   args: {...Default.args, value: 25, valueLabel: '1 of 4'},
   name: 'valueLabel: 1 of 4'
 };
 
 export const UsingNumberFormatOptionsWithCurrencyStyle: MeterStory = {
+  ...Default,
   args: {...Default.args, showValueLabel: true, formatOptions},
   name: 'Using number formatOptions with currency style'
 };
 
 export const NoVisibleLabel: MeterStory = {
+  ...Default,
   args: {...Default.args, label: null, 'aria-label': 'Meter'},
   name: 'no visible label'
 };
 
 export const ParentWidth100: MeterStory = {
+  ...Default,
   args: {...Default.args, value: 32},
   decorators: [
     (Story) => (
@@ -90,6 +103,7 @@ export const ParentWidth100: MeterStory = {
 };
 
 export const ParentWidth100Px: MeterStory = {
+  ...Default,
   args: {...Default.args, value: 32},
   decorators: [
     (Story) => (
@@ -102,21 +116,25 @@ export const ParentWidth100Px: MeterStory = {
 };
 
 export const Width300Px: MeterStory = {
+  ...Default,
   args: {...Default.args, value: 32, width: '300px'},
   name: 'width: 300px'
 };
 
 export const Width30Px: MeterStory = {
+  ...Default,
   args: {...Default.args, value: 32, width: '30px'},
   name: 'width: 30px'
 };
 
 export const UsingRawValuesForMinValueMaxValueAndValue: MeterStory = {
+  ...Default,
   args: {...Default.args, showValueLabel: true, labelPosition: 'top', maxValue: 2147483648, value: 715827883},
   name: 'Using raw values for minValue, maxValue, and value'
 };
 
 export const UsingRawValuesWithNumberFormatter: MeterStory = {
+  ...Default,
   args: {...Default.args, showValueLabel: true, labelPosition: 'top', maxValue: 2147483648, value: 715827883, formatOptions},
   name: 'Using raw values with number formatter'
 };

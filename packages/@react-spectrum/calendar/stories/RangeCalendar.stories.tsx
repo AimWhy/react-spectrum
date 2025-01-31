@@ -70,9 +70,16 @@ export default {
     visibleMonths: {
       control: 'number'
     },
-    validationState: {
+    pageBehavior: {
       control: 'select',
-      options: [null, 'valid', 'invalid']
+      options: [null, 'single', 'visible']
+    },
+    firstDayOfWeek: {
+      control: 'select',
+      options: [undefined, 'sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+    },
+    isInvalid: {
+      control: 'boolean'
     },
     errorMessage: {
       control: 'text'

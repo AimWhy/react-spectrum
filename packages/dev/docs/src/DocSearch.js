@@ -119,21 +119,23 @@ export default function DocSearch() {
             hit,
             hierarchy,
             docsearchParent,
-            textValue: hit.type === 'content' ? hit[hit.type] : hierarchy[hit.type]
+            textValue: hit.type === 'content' ? hit[hit.type] : hierarchy[hit.type],
+            href: `${window.location.hostname === 'reactspectrum.blob.core.windows.net' ? window.location.href.replace(/(.+\/docs\/)(.+)/, '$1') : '/'}${hit.url.replace('https://react-spectrum.adobe.com/', '')}`
           };
         }
       ));
 
       sections.push({title, items: items.map((item) => item[0])});
     }
-    let newSuggestions = sections.map((section, index) => ({key: `${index}-${section.title}`, title: section.title, children: section.items}));
+    let newSuggestions = sections.map((section) => ({key: section.title, title: section.title, children: section.items}));
     newSuggestions.push({
       key: 'algolia-footer',
       title: 'Search by',
       children: [
         {
           key: 'algolia-footer-logo',
-          textValue: 'Algolia'
+          textValue: 'Algolia',
+          href: 'https://www.algolia.com/ref/docsearch/?utm_source=react-spectrum.adobe.com&amp;utm_medium=referral&amp;utm_content=powered_by&amp;utm_campaign=docsearch'
         }
       ]
     });
@@ -158,17 +160,6 @@ export default function DocSearch() {
       .then(updatePredictions);
   };
 
-  let onSubmit = (value, key) => {
-    if (key === 'algolia-footer-logo') {
-      window.open('https://www.algolia.com/ref/docsearch/?utm_source=react-spectrum.adobe.com&amp;utm_medium=referral&amp;utm_content=powered_by&amp;utm_campaign=docsearch', '_blank');
-      searchAutocompleteRef.current.UNSAFE_getDOMNode().querySelector('[role="button"]').click();
-    } else if (key) {
-      let prediction = predictions.find(prediction => key === prediction.objectID);
-      let url = prediction.url;
-      window.location.href = `${window.location.hostname === 'reactspectrum.blob.core.windows.net' ? window.location.href.replace(/(.+\/docs\/)(.+)/, '$1') : '/'}${url.replace('https://react-spectrum.adobe.com/', '')}`;
-    }
-  };
-
   return (
     <ThemeProvider UNSAFE_className={docsStyle.docSearchBoxThemeProvider}>
       <span role="search">
@@ -186,12 +177,11 @@ export default function DocSearch() {
             } else {
               document.body.classList.remove(docsStyle['docsearch-open']);
             }
-          }}
-          onSubmit={onSubmit}>
+          }}>
           {(section) => (
             <Section key={section.key} items={section.children} title={section.title}>
               {(item) => (
-                <Item key={item.key} textValue={item.textValue}>
+                <Item key={item.key} textValue={item.textValue} href={item.href} target={item.key === 'algolia-footer-logo' ? '_blank' : '_self'}>
                   {item.key === 'algolia-footer-logo' && (
                     <Text>
                       <svg width="77" height="19" aria-label="Algolia" role="img" style={{color: 'var(--docsearch-logo-color)'}}>

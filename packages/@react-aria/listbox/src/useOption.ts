@@ -10,12 +10,11 @@
  * governing permissions and limitations under the License.
  */
 
-import {DOMAttributes, FocusableElement} from '@react-types/shared';
+import {chain, filterDOMProps, isMac, isWebKit, mergeProps, useLinkProps, useSlotId} from '@react-aria/utils';
+import {DOMAttributes, FocusableElement, Key, RefObject} from '@react-types/shared';
 import {getItemCount} from '@react-stately/collections';
 import {getItemId, listData} from './utils';
 import {isFocusVisible, useHover} from '@react-aria/interactions';
-import {isMac, isWebKit, mergeProps, useSlotId} from '@react-aria/utils';
-import {Key, RefObject} from 'react';
 import {ListState} from '@react-stately/list';
 import {SelectableItemStates, useSelectableItem} from '@react-aria/selection';
 
@@ -86,14 +85,14 @@ export interface AriaOptionProps {
  * @param props - Props for the option.
  * @param state - State for the listbox, as returned by `useListState`.
  */
-export function useOption<T>(props: AriaOptionProps, state: ListState<T>, ref: RefObject<FocusableElement>): OptionAria {
+export function useOption<T>(props: AriaOptionProps, state: ListState<T>, ref: RefObject<FocusableElement | null>): OptionAria {
   let {
     key
   } = props;
 
   let data = listData.get(state);
 
-  let isDisabled = props.isDisabled ?? state.disabledKeys.has(key);
+  let isDisabled = props.isDisabled ?? state.selectionManager.isDisabled(key);
   let isSelected = props.isSelected ?? state.selectionManager.isSelected(key);
   let shouldSelectOnPressUp = props.shouldSelectOnPressUp ?? data?.shouldSelectOnPressUp;
   let shouldFocusOnHover = props.shouldFocusOnHover ?? data?.shouldFocusOnHover;
@@ -118,12 +117,15 @@ export function useOption<T>(props: AriaOptionProps, state: ListState<T>, ref: R
     optionProps['aria-describedby'] = descriptionId;
   }
 
+  let item = state.collection.getItem(key);
   if (isVirtualized) {
-    let index = Number(state.collection.getItem(key)?.index);
+    let index = Number(item?.index);
     optionProps['aria-posinset'] = Number.isNaN(index) ? undefined : index + 1;
     optionProps['aria-setsize'] = getItemCount(state.collection);
   }
 
+  let onAction = data?.onAction ? () => data?.onAction?.(key) : undefined;
+  let id = getItemId(state, key);
   let {itemProps, isPressed, isFocused, hasAction, allowsSelection} = useSelectableItem({
     selectionManager: state.selectionManager,
     key,
@@ -133,7 +135,9 @@ export function useOption<T>(props: AriaOptionProps, state: ListState<T>, ref: R
     isVirtualized,
     shouldUseVirtualFocus,
     isDisabled,
-    onAction: data?.onAction ? () => data?.onAction?.(key) : undefined
+    onAction: onAction || item?.props?.onAction ? chain(item?.props?.onAction, onAction) : undefined,
+    linkBehavior: data?.linkBehavior,
+    id
   });
 
   let {hoverProps} = useHover({
@@ -146,11 +150,15 @@ export function useOption<T>(props: AriaOptionProps, state: ListState<T>, ref: R
     }
   });
 
+  let domProps = filterDOMProps(item?.props);
+  delete domProps.id;
+  let linkProps = useLinkProps(item?.props);
+
   return {
     optionProps: {
       ...optionProps,
-      ...mergeProps(itemProps, hoverProps),
-      id: getItemId(state, key)
+      ...mergeProps(domProps, itemProps, hoverProps, linkProps),
+      id
     },
     labelProps: {
       id: labelId

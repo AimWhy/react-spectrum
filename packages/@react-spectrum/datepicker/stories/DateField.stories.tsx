@@ -19,6 +19,7 @@ import {DateField} from '../';
 import {Flex} from '@react-spectrum/layout';
 import {Heading} from '@react-spectrum/text';
 import {Item, Picker, Section} from '@react-spectrum/picker';
+import {Key} from '@react-types/shared';
 import {Provider} from '@react-spectrum/provider';
 import React from 'react';
 import {useLocale} from '@react-aria/i18n';
@@ -107,6 +108,9 @@ export default {
       options: [12, 24]
     },
     hideTimeZone: {
+      control: 'boolean'
+    },
+    shouldForceLeadingZeros: {
       control: 'boolean'
     },
     isDisabled: {
@@ -204,6 +208,24 @@ export const MinMaxValue: DateFieldStory = {
   name: 'minValue: 2010/1/1, maxValue: 2020/1/1'
 };
 
+export const IsDateUnavailable: DateFieldStory = {
+  ...Default,
+  args: {
+    isDateUnavailable: (date) => {
+      return date.compare(new CalendarDate(1980, 1, 1)) >= 0 
+          && date.compare(new CalendarDate(1980, 1, 8)) <= 0;
+    },
+    errorMessage: 'Date unavailable.',
+    contextualHelp: (
+      <ContextualHelp>
+        <Heading>Which dates are unavailable?</Heading>
+        <Content>Any date between 1/1/1980 and 1/8/1980 are unavailable.</Content>
+      </ContextualHelp>
+    )
+  },
+  parameters: {description: {data: 'Any date between 1/1/1980 and 1/8/1980 are unavailable and will display a "Date unavailable" error to the user'}}
+};
+
 export const PlaceholderVal: DateFieldStory = {
   ...Default,
   args: {placeholderValue: new CalendarDate(1980, 1, 1)},
@@ -255,7 +277,7 @@ const preferences = [
   {locale: '', label: 'Default', ordering: 'gregory'},
   {label: 'Arabic (Algeria)', locale: 'ar-DZ', territories: 'DJ DZ EH ER IQ JO KM LB LY MA MR OM PS SD SY TD TN YE', ordering: 'gregory islamic islamic-civil islamic-tbla'},
   {label: 'Arabic (United Arab Emirates)', locale: 'ar-AE', territories: 'AE BH KW QA', ordering: 'gregory islamic-umalqura islamic islamic-civil islamic-tbla'},
-  {label: 'Arabic (Egypt)', locale: 'AR-EG', territories: 'EG', ordering: 'gregory coptic islamic islamic-civil islamic-tbla'},
+  {label: 'Arabic (Egypt)', locale: 'ar-EG', territories: 'EG', ordering: 'gregory coptic islamic islamic-civil islamic-tbla'},
   {label: 'Arabic (Saudi Arabia)', locale: 'ar-SA', territories: 'SA', ordering: 'islamic-umalqura gregory islamic islamic-rgsa'},
   {label: 'Farsi (Afghanistan)', locale: 'fa-AF', territories: 'AF IR', ordering: 'persian gregory islamic islamic-civil islamic-tbla'},
   // {territories: 'CN CX HK MO SG', ordering: 'gregory chinese'},
@@ -288,16 +310,16 @@ const calendars = [
 
 function Example(props) {
   let [locale, setLocale] = React.useState('');
-  let [calendar, setCalendar] = React.useState<React.Key>(calendars[0].key);
+  let [calendar, setCalendar] = React.useState<Key>(calendars[0].key);
   let {locale: defaultLocale} = useLocale();
 
   let pref = preferences.find(p => p.locale === locale);
-  let preferredCalendars = React.useMemo(() => pref ? pref.ordering.split(' ').map(p => calendars.find(c => c.key === p)).filter(Boolean) : [calendars[0]], [pref]);
+  let preferredCalendars = React.useMemo(() => pref ? pref.ordering.split(' ').map(p => calendars.find(c => c.key === p)).filter(v => v != null) : [calendars[0]], [pref]);
   let otherCalendars = React.useMemo(() => calendars.filter(c => !preferredCalendars.some(p => p.key === c.key)), [preferredCalendars]);
 
   let updateLocale = locale => {
     setLocale(locale);
-    let pref = preferences.find(p => p.locale === locale);
+    let pref = preferences.find(p => p.locale === locale)!;
     setCalendar(pref.ordering.split(' ')[0]);
   };
 

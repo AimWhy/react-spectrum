@@ -15,32 +15,39 @@ import {AriaButtonProps} from '@react-types/button';
 import {AriaComboBoxProps} from '@react-types/combobox';
 import {ariaHideOutside} from '@react-aria/overlays';
 import {AriaListBoxOptions, getItemId, listData} from '@react-aria/listbox';
-import {BaseEvent, DOMAttributes, KeyboardDelegate, PressEvent} from '@react-types/shared';
-import {chain, isAppleDevice, mergeProps, useLabels} from '@react-aria/utils';
+import {BaseEvent, DOMAttributes, KeyboardDelegate, LayoutDelegate, PressEvent, RefObject, RouterOptions, ValidationResult} from '@react-types/shared';
+import {chain, isAppleDevice, mergeProps, useLabels, useRouter} from '@react-aria/utils';
 import {ComboBoxState} from '@react-stately/combobox';
-import {FocusEvent, InputHTMLAttributes, KeyboardEvent, RefObject, TouchEvent, useEffect, useMemo, useRef} from 'react';
+import {FocusEvent, InputHTMLAttributes, KeyboardEvent, TouchEvent, useEffect, useMemo, useRef} from 'react';
 import {getChildNodes, getItemCount} from '@react-stately/collections';
 // @ts-ignore
 import intlMessages from '../intl/*.json';
 import {ListKeyboardDelegate, useSelectableCollection} from '@react-aria/selection';
+import {privateValidationStateProp} from '@react-stately/form';
 import {useLocalizedStringFormatter} from '@react-aria/i18n';
 import {useMenuTrigger} from '@react-aria/menu';
 import {useTextField} from '@react-aria/textfield';
 
 export interface AriaComboBoxOptions<T> extends Omit<AriaComboBoxProps<T>, 'children'> {
   /** The ref for the input element. */
-  inputRef: RefObject<HTMLInputElement>,
+  inputRef: RefObject<HTMLInputElement | null>,
   /** The ref for the list box popover. */
-  popoverRef: RefObject<Element>,
+  popoverRef: RefObject<Element | null>,
   /** The ref for the list box. */
-  listBoxRef: RefObject<HTMLElement>,
+  listBoxRef: RefObject<HTMLElement | null>,
   /** The ref for the optional list box popup trigger button.  */
-  buttonRef?: RefObject<Element>,
+  buttonRef?: RefObject<Element | null>,
   /** An optional keyboard delegate implementation, to override the default. */
-  keyboardDelegate?: KeyboardDelegate
+  keyboardDelegate?: KeyboardDelegate,
+  /**
+   * A delegate object that provides layout information for items in the collection.
+   * By default this uses the DOM, but this can be overridden to implement things like
+   * virtualized scrolling.
+   */
+  layoutDelegate?: LayoutDelegate
 }
 
-export interface ComboBoxAria<T> {
+export interface ComboBoxAria<T> extends ValidationResult {
   /** Props for the label element. */
   labelProps: DOMAttributes,
   /** Props for the combo box input element. */
@@ -68,13 +75,16 @@ export function useComboBox<T>(props: AriaComboBoxOptions<T>, state: ComboBoxSta
     inputRef,
     listBoxRef,
     keyboardDelegate,
+    layoutDelegate,
     // completionMode = 'suggest',
     shouldFocusWrap,
     isReadOnly,
     isDisabled
   } = props;
+  let backupBtnRef = useRef(null);
+  buttonRef = buttonRef ?? backupBtnRef;
 
-  let stringFormatter = useLocalizedStringFormatter(intlMessages);
+  let stringFormatter = useLocalizedStringFormatter(intlMessages, '@react-aria/combobox');
   let {menuTriggerProps, menuProps} = useMenuTrigger<T>(
     {
       type: 'listbox',
@@ -89,10 +99,16 @@ export function useComboBox<T>(props: AriaComboBoxOptions<T>, state: ComboBoxSta
 
   // By default, a KeyboardDelegate is provided which uses the DOM to query layout information (e.g. for page up/page down).
   // When virtualized, the layout object will be passed in as a prop and override this.
-  let delegate = useMemo(() =>
-    keyboardDelegate ||
-    new ListKeyboardDelegate(state.collection, state.disabledKeys, listBoxRef)
-  , [keyboardDelegate, state.collection, state.disabledKeys, listBoxRef]);
+  let {collection} = state;
+  let {disabledKeys} = state.selectionManager;
+  let delegate = useMemo(() => (
+    keyboardDelegate || new ListKeyboardDelegate({
+      collection,
+      disabledKeys,
+      ref: listBoxRef,
+      layoutDelegate
+    })
+  ), [keyboardDelegate, layoutDelegate, collection, disabledKeys, listBoxRef]);
 
   // Use useSelectableCollection to get the keyboard handlers to apply to the textfield
   let {collectionProps} = useSelectableCollection({
@@ -106,8 +122,13 @@ export function useComboBox<T>(props: AriaComboBoxOptions<T>, state: ComboBoxSta
     isVirtualized: true
   });
 
+  let router = useRouter();
+
   // For textfield specific keydown operations
   let onKeyDown = (e: BaseEvent<KeyboardEvent<any>>) => {
+    if (e.nativeEvent.isComposing) {
+      return;
+    }
     switch (e.key) {
       case 'Enter':
       case 'Tab':
@@ -116,7 +137,20 @@ export function useComboBox<T>(props: AriaComboBoxOptions<T>, state: ComboBoxSta
           e.preventDefault();
         }
 
-        state.commit();
+        // If the focused item is a link, trigger opening it. Items that are links are not selectable.
+        if (state.isOpen && listBoxRef.current && state.selectionManager.focusedKey != null && state.selectionManager.isLink(state.selectionManager.focusedKey)) {
+          let item = listBoxRef.current.querySelector(`[data-key="${CSS.escape(state.selectionManager.focusedKey.toString())}"]`);
+          if (e.key === 'Enter' && item instanceof HTMLAnchorElement) {
+            let collectionItem = state.collection.getItem(state.selectionManager.focusedKey);
+            if (collectionItem) {
+              router.open(item, e, collectionItem.props.href, collectionItem.props.routerOptions as RouterOptions);
+            }
+          }
+
+          state.close();
+        } else {
+          state.commit();
+        }
         break;
       case 'Escape':
         if (
@@ -142,8 +176,10 @@ export function useComboBox<T>(props: AriaComboBoxOptions<T>, state: ComboBoxSta
   };
 
   let onBlur = (e: FocusEvent<HTMLInputElement>) => {
-    // Ignore blur if focused moved to the button or into the popover.
-    if (e.relatedTarget === buttonRef?.current || popoverRef.current?.contains(e.relatedTarget)) {
+    let blurFromButton = buttonRef?.current && buttonRef.current === e.relatedTarget;
+    let blurIntoPopover = popoverRef.current?.contains(e.relatedTarget);
+    // Ignore blur if focused moved to the button(if exists) or into the popover.
+    if (blurFromButton || blurIntoPopover) {
       return;
     }
 
@@ -166,28 +202,31 @@ export function useComboBox<T>(props: AriaComboBoxOptions<T>, state: ComboBoxSta
     state.setFocused(true);
   };
 
+  let {isInvalid, validationErrors, validationDetails} = state.displayValidation;
   let {labelProps, inputProps, descriptionProps, errorMessageProps} = useTextField({
     ...props,
     onChange: state.setInputValue,
-    onKeyDown: !isReadOnly && chain(state.isOpen && collectionProps.onKeyDown, onKeyDown, props.onKeyDown),
+    onKeyDown: !isReadOnly ? chain(state.isOpen && collectionProps.onKeyDown, onKeyDown, props.onKeyDown) : props.onKeyDown,
     onBlur,
     value: state.inputValue,
     onFocus,
-    autoComplete: 'off'
+    autoComplete: 'off',
+    validate: undefined,
+    [privateValidationStateProp]: state
   }, inputRef);
 
   // Press handlers for the ComboBox button
   let onPress = (e: PressEvent) => {
     if (e.pointerType === 'touch') {
       // Focus the input field in case it isn't focused yet
-      inputRef.current.focus();
+      inputRef.current?.focus();
       state.toggle(null, 'manual');
     }
   };
 
   let onPressStart = (e: PressEvent) => {
     if (e.pointerType !== 'touch') {
-      inputRef.current.focus();
+      inputRef.current?.focus();
       state.toggle((e.pointerType === 'keyboard' || e.pointerType === 'virtual') ? 'first' : null, 'manual');
     }
   };
@@ -214,7 +253,7 @@ export function useComboBox<T>(props: AriaComboBoxOptions<T>, state: ComboBoxSta
     // Sometimes VoiceOver on iOS fires two touchend events in quick succession. Ignore the second one.
     if (e.timeStamp - lastEventTime.current < 500) {
       e.preventDefault();
-      inputRef.current.focus();
+      inputRef.current?.focus();
       return;
     }
 
@@ -226,7 +265,7 @@ export function useComboBox<T>(props: AriaComboBoxOptions<T>, state: ComboBoxSta
 
     if (touch.clientX === centerX && touch.clientY === centerY) {
       e.preventDefault();
-      inputRef.current.focus();
+      inputRef.current?.focus();
       state.toggle(null, 'manual');
 
       lastEventTime.current = e.timeStamp;
@@ -244,13 +283,13 @@ export function useComboBox<T>(props: AriaComboBoxOptions<T>, state: ComboBoxSta
   let lastSection = useRef(sectionKey);
   let lastItem = useRef(itemKey);
   useEffect(() => {
-    if (isAppleDevice() && focusedItem != null && itemKey !== lastItem.current) {
+    if (isAppleDevice() && focusedItem != null && itemKey != null && itemKey !== lastItem.current) {
       let isSelected = state.selectionManager.isSelected(itemKey);
       let section = sectionKey != null ? state.collection.getItem(sectionKey) : null;
       let sectionTitle = section?.['aria-label'] || (typeof section?.rendered === 'string' ? section.rendered : '') || '';
 
       let announcement = stringFormatter.format('focusAnnouncement', {
-        isGroupChange: section && sectionKey !== lastSection.current,
+        isGroupChange: (section && sectionKey !== lastSection.current) ?? false,
         groupTitle: sectionTitle,
         groupCount: section ? [...getChildNodes(section, state.collection)].length : 0,
         optionText: focusedItem['aria-label'] || focusedItem.textValue || '',
@@ -299,7 +338,7 @@ export function useComboBox<T>(props: AriaComboBoxOptions<T>, state: ComboBoxSta
 
   useEffect(() => {
     if (state.isOpen) {
-      return ariaHideOutside([inputRef.current, popoverRef.current]);
+      return ariaHideOutside([inputRef.current, popoverRef.current].filter(element => element != null));
     }
   }, [state.isOpen, inputRef, popoverRef]);
 
@@ -309,6 +348,7 @@ export function useComboBox<T>(props: AriaComboBoxOptions<T>, state: ComboBoxSta
       ...menuTriggerProps,
       ...triggerLabelProps,
       excludeFromTabOrder: true,
+      preventFocusOnPress: true,
       onPress,
       onPressStart,
       isDisabled: isDisabled || isReadOnly
@@ -330,9 +370,13 @@ export function useComboBox<T>(props: AriaComboBoxOptions<T>, state: ComboBoxSta
       autoFocus: state.focusStrategy,
       shouldUseVirtualFocus: true,
       shouldSelectOnPressUp: true,
-      shouldFocusOnHover: true
+      shouldFocusOnHover: true,
+      linkBehavior: 'selection' as const
     }),
     descriptionProps,
-    errorMessageProps
+    errorMessageProps,
+    isInvalid,
+    validationErrors,
+    validationDetails
   };
 }

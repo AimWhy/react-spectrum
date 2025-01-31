@@ -11,31 +11,37 @@
  */
 
 import {Card} from '../src';
-import {composeStories} from '@storybook/testing-react';
-import * as defaultStories from '../chromatic/Card.chromatic';
-import * as quietStories from '../chromatic/QuietCard.chromatic';
+import {composeStories} from '@storybook/react';
+import * as defaultStories from '../chromatic/Card.stories';
+import {pointerMap, render} from '@react-spectrum/test-utils-internal';
+import * as quietStories from '../chromatic/QuietCard.stories';
 import React from 'react';
-import {render} from '@react-spectrum/test-utils';
 import userEvent from '@testing-library/user-event';
 
 let {Default, DefaultPreviewAlt, NoDescription} = composeStories(defaultStories);
 let {Quiet} = composeStories(quietStories);
 
+let isOldReact = parseInt(React.version, 10) < 18;
+
 describe('Card', function () {
-  it('Default is labelled and described', function () {
+  let user;
+  beforeAll(() => {
+    user = userEvent.setup({delay: null, pointerMap});
+  });
+  it('Default is labelled and described', async function () {
     let {getByRole, getByLabelText, getAllByRole} = render(<Card {...Default.args} />);
     let card = getByRole('article');
     let heading = getByRole('heading', {level: 3});
-    let images = getAllByRole('img');
+    let images = getAllByRole(isOldReact ? 'img' : 'presentation');
     let labelledCard = getByLabelText(heading.textContent);
     expect(card).toBe(labelledCard);
     expect(card).toHaveAccessibleDescription('Description');
     expect(images[0]).not.toHaveAccessibleName();
 
-    userEvent.tab();
+    await user.tab();
     expect(card).toBe(document.activeElement);
 
-    userEvent.tab();
+    await user.tab();
     expect(document.body).toBe(document.activeElement);
   });
 
@@ -55,17 +61,17 @@ describe('Card', function () {
     expect(images[0]).toHaveAccessibleName('preview');
   });
 
-  it('Quiet has no footer buttons', function () {
+  it('Quiet has no footer buttons', async function () {
     let {getByRole, getAllByRole, getByLabelText} = render(<Card {...Quiet.args} />);
     let card = getByRole('article');
     let heading = getByRole('heading', {level: 3});
-    let images = getAllByRole('img');
+    let images = getAllByRole(isOldReact ? 'img' : 'presentation');
     let labelledCard = getByLabelText(heading.textContent);
     expect(card).toBe(labelledCard);
     expect(card).toHaveAccessibleDescription('Description');
     expect(images[0]).not.toHaveAccessibleName();
 
-    userEvent.tab();
+    await user.tab();
     expect(card).toBe(document.activeElement);
   });
 });

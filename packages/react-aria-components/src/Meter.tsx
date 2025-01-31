@@ -11,7 +11,9 @@
  */
 
 import {AriaMeterProps, useMeter} from 'react-aria';
+import {clamp} from '@react-stately/utils';
 import {ContextValue, RenderProps, SlotProps, useContextProps, useRenderProps, useSlot} from './utils';
+import {forwardRefType} from '@react-types/shared';
 import {LabelContext} from './Label';
 import React, {createContext, ForwardedRef, forwardRef} from 'react';
 
@@ -26,18 +28,22 @@ export interface MeterRenderProps {
    * A formatted version of the value.
    * @selector [aria-valuetext]
    */
-  valueText?: string
+  valueText: string | undefined
 }
 
 export const MeterContext = createContext<ContextValue<MeterProps, HTMLDivElement>>(null);
 
-function Meter(props: MeterProps, ref: ForwardedRef<HTMLDivElement>) {
+/**
+ * A meter represents a quantity within a known range, or a fractional value.
+ */
+export const Meter = /*#__PURE__*/ (forwardRef as forwardRefType)(function Meter(props: MeterProps, ref: ForwardedRef<HTMLDivElement>) {
   [props, ref] = useContextProps(props, ref, MeterContext);
   let {
     value = 0,
     minValue = 0,
     maxValue = 100
   } = props;
+  value = clamp(value, minValue, maxValue);
 
   let [labelRef, label] = useSlot();
   let {
@@ -58,16 +64,10 @@ function Meter(props: MeterProps, ref: ForwardedRef<HTMLDivElement>) {
   });
 
   return (
-    <div {...meterProps} {...renderProps} ref={ref} slot={props.slot}>
+    <div {...meterProps} {...renderProps} ref={ref} slot={props.slot || undefined}>
       <LabelContext.Provider value={{...labelProps, ref: labelRef, elementType: 'span'}}>
         {renderProps.children}
       </LabelContext.Provider>
     </div>
   );
-}
-
-/**
- * A meter represents a quantity within a known range, or a fractional value.
- */
-const _Meter = forwardRef(Meter);
-export {_Meter as Meter};
+});

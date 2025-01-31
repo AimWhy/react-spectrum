@@ -13,8 +13,7 @@
 import {action} from '@storybook/addon-actions';
 import {Checkbox, CheckboxGroup} from '../';
 import {ComponentMeta, ComponentStoryObj} from '@storybook/react';
-import {Content, ContextualHelp, Heading} from '@adobe/react-spectrum';
-import {Flex} from '@adobe/react-spectrum';
+import {Content, ContextualHelp, Flex, Heading} from '@adobe/react-spectrum';
 import React, {useState} from 'react';
 import {SpectrumCheckboxGroupProps} from '@react-types/checkbox';
 
@@ -72,9 +71,8 @@ export default {
       control: 'select',
       options: ['start', 'end']
     },
-    validationState: {
-      control: 'select',
-      options: [null, 'valid', 'invalid']
+    isInvalid: {
+      control: 'boolean'
     },
     description: {
       control: 'text'
@@ -125,7 +123,7 @@ export const TwoCheckboxDisabled: CheckboxGroupStory = {
 };
 
 export const OneInvalidCheckbox: CheckboxGroupStory = {
-  render: (args) => render(args, [{}, {validationState: 'invalid'}, {}]),
+  render: (args) => render(args, [{}, {isInvalid: true}, {}]),
   name: 'validationState: "invalid" on one checkbox'
 };
 
@@ -195,7 +193,7 @@ function renderWithDescriptionErrorMessageAndValidation(props) {
           label="Pets"
           onChange={setChecked}
           value={checked}
-          validationState={isValid ? 'valid' : 'invalid'}
+          isInvalid={!isValid}
           description="Select a pet."
           errorMessage={
           checked.includes('cats')

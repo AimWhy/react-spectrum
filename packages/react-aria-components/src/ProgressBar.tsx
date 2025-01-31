@@ -11,6 +11,7 @@
  */
 
 import {AriaProgressBarProps, useProgressBar} from 'react-aria';
+import {clamp} from '@react-stately/utils';
 import {ContextValue, RenderProps, SlotProps, useContextProps, useRenderProps, useSlot} from './utils';
 import {LabelContext} from './Label';
 import React, {createContext, ForwardedRef, forwardRef} from 'react';
@@ -26,7 +27,7 @@ export interface ProgressBarRenderProps {
    * A formatted version of the value.
    * @selector [aria-valuetext]
    */
-  valueText?: string,
+  valueText: string | undefined,
   /**
    * Whether the progress bar is indeterminate.
    * @selector :not([aria-valuenow])
@@ -36,7 +37,11 @@ export interface ProgressBarRenderProps {
 
 export const ProgressBarContext = createContext<ContextValue<ProgressBarProps, HTMLDivElement>>(null);
 
-function ProgressBar(props: ProgressBarProps, ref: ForwardedRef<HTMLDivElement>) {
+/**
+ * Progress bars show either determinate or indeterminate progress of an operation
+ * over time.
+ */
+export const ProgressBar = forwardRef(function ProgressBar(props: ProgressBarProps, ref: ForwardedRef<HTMLDivElement>) {
   [props, ref] = useContextProps(props, ref, ProgressBarContext);
   let {
     value = 0,
@@ -44,6 +49,7 @@ function ProgressBar(props: ProgressBarProps, ref: ForwardedRef<HTMLDivElement>)
     maxValue = 100,
     isIndeterminate = false
   } = props;
+  value = clamp(value, minValue, maxValue);
 
   let [labelRef, label] = useSlot();
   let {
@@ -65,17 +71,10 @@ function ProgressBar(props: ProgressBarProps, ref: ForwardedRef<HTMLDivElement>)
   });
 
   return (
-    <div {...progressBarProps} {...renderProps} ref={ref} slot={props.slot}>
+    <div {...progressBarProps} {...renderProps} ref={ref} slot={props.slot || undefined}>
       <LabelContext.Provider value={{...labelProps, ref: labelRef, elementType: 'span'}}>
         {renderProps.children}
       </LabelContext.Provider>
     </div>
   );
-}
-
-/**
- * Progress bars show either determinate or indeterminate progress of an operation
- * over time.
- */
-const _ProgressBar = forwardRef(ProgressBar);
-export {_ProgressBar as ProgressBar};
+});

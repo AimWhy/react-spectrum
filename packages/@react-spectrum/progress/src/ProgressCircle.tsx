@@ -18,12 +18,18 @@ import {SpectrumProgressCircleProps} from '@react-types/progress';
 import styles from '@adobe/spectrum-css-temp/components/circleloader/vars.css';
 import {useProgressBar} from '@react-aria/progress';
 
-function ProgressCircle(props: SpectrumProgressCircleProps, ref: DOMRef<HTMLDivElement>) {
+
+/**
+ * ProgressCircles show the progression of a system operation such as downloading, uploading, or processing, in a visual way.
+ * They can represent determinate or indeterminate progress.
+ */
+export const ProgressCircle = React.forwardRef(function ProgressCircle(props: SpectrumProgressCircleProps, ref: DOMRef<HTMLDivElement>) {
   let {
     value = 0,
     minValue = 0,
     maxValue = 100,
     size = 'M',
+    staticColor,
     variant,
     isIndeterminate = false,
     'aria-label': ariaLabel,
@@ -69,7 +75,9 @@ function ProgressCircle(props: SpectrumProgressCircleProps, ref: DOMRef<HTMLDivE
             'spectrum-CircleLoader--indeterminate': isIndeterminate,
             'spectrum-CircleLoader--small': size === 'S',
             'spectrum-CircleLoader--large': size === 'L',
-            'spectrum-CircleLoader--overBackground': variant === 'overBackground'
+            'spectrum-CircleLoader--overBackground': variant === 'overBackground',
+            'spectrum-CircleLoader--staticWhite': staticColor === 'white',
+            'spectrum-CircleLoader--staticBlack': staticColor === 'black'
           },
           styleProps.className
         )
@@ -95,11 +103,4 @@ function ProgressCircle(props: SpectrumProgressCircleProps, ref: DOMRef<HTMLDivE
       </div>
     </div>
   );
-}
-
-/**
- * ProgressCircles show the progression of a system operation such as downloading, uploading, or processing, in a visual way.
- * They can represent determinate or indeterminate progress.
- */
-let _ProgressCircle = React.forwardRef(ProgressCircle);
-export {_ProgressCircle as ProgressCircle};
+});

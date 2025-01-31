@@ -10,13 +10,17 @@
  * governing permissions and limitations under the License.
  */
 
+import {AriaTabListProps, useTab, useTabList, useTabPanel} from '@react-aria/tabs';
 import React from 'react';
-import {useTab, useTabList, useTabPanel} from '@react-aria/tabs';
 import {useTabListState} from '@react-stately/tabs';
 
-export function Tabs({shouldSelectOnPressUp, ...props}) {
+interface TabProps extends AriaTabListProps<any> {
+  shouldSelectOnPressUp?: boolean
+}
+
+export function Tabs({shouldSelectOnPressUp, ...props}: TabProps) {
   let state = useTabListState(props);
-  let ref = React.useRef();
+  let ref = React.useRef(null);
   let {tabListProps} = useTabList(props, state, ref);
   return (
     <div style={{height: '150px'}}>
@@ -46,7 +50,7 @@ export function Tabs({shouldSelectOnPressUp, ...props}) {
 
 function Tab({shouldSelectOnPressUp, item, state}) {
   let {key, rendered} = item;
-  let ref = React.useRef();
+  let ref = React.useRef(null);
   let {tabProps} = useTab({key, shouldSelectOnPressUp}, state, ref);
   let isSelected = state.selectedKey === key;
   let isDisabled = state.disabledKeys.has(key);
@@ -65,7 +69,7 @@ function Tab({shouldSelectOnPressUp, item, state}) {
 }
 
 function TabPanel({state, ...props}) {
-  let ref = React.useRef();
+  let ref = React.useRef(null);
   let {tabPanelProps} = useTabPanel(props, state, ref);
   return (
     <div {...tabPanelProps} ref={ref} style={{padding: '10px'}}>

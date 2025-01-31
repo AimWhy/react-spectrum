@@ -11,8 +11,9 @@
  */
 
 export type {RTLOffsetType} from './utils';
-export {useVirtualizer, Virtualizer} from './Virtualizer';
+export type {VirtualizerItemOptions} from './useVirtualizerItem';
+export {Virtualizer} from './Virtualizer';
 export {useVirtualizerItem} from './useVirtualizerItem';
 export {VirtualizerItem, layoutInfoToStyle} from './VirtualizerItem';
-export {ScrollView} from './ScrollView';
+export {ScrollView, useScrollView} from './ScrollView';
 export {getRTLOffsetType, getScrollLeft, setScrollLeft} from './utils';

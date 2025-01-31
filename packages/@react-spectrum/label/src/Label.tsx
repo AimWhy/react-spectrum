@@ -22,7 +22,7 @@ import styles from '@adobe/spectrum-css-temp/components/fieldlabel/vars.css';
 import {useLocalizedStringFormatter} from '@react-aria/i18n';
 import {useProviderProps} from '@react-spectrum/provider';
 
-function Label(props: SpectrumLabelProps, ref: DOMRef<HTMLLabelElement>) {
+export const Label = React.forwardRef(function Label(props: SpectrumLabelProps, ref: DOMRef<HTMLLabelElement>) {
   props = useProviderProps(props);
   let {
     children,
@@ -41,7 +41,7 @@ function Label(props: SpectrumLabelProps, ref: DOMRef<HTMLLabelElement>) {
   let domRef = useDOMRef(ref);
   let {styleProps} = useStyleProps(otherProps);
 
-  let stringFormatter = useLocalizedStringFormatter(intlMessages);
+  let stringFormatter = useLocalizedStringFormatter(intlMessages, '@react-spectrum/label');
   let necessityLabel = isRequired ? stringFormatter.format('(required)') : stringFormatter.format('(optional)');
   let icon = (
     <Asterisk
@@ -76,7 +76,4 @@ function Label(props: SpectrumLabelProps, ref: DOMRef<HTMLLabelElement>) {
       {necessityIndicator === 'icon' && isRequired && icon}
     </ElementType>
   );
-}
-
-let _Label = React.forwardRef(Label);
-export {_Label as Label};
+});

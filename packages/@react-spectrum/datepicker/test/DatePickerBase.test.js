@@ -10,12 +10,13 @@
  * governing permissions and limitations under the License.
  */
 
-import {act, fireEvent, installPointerEvent, render as render_, triggerPress, within} from '@react-spectrum/test-utils';
+import {act, fireEvent, installPointerEvent, pointerMap, render as render_, simulateDesktop, within} from '@react-spectrum/test-utils-internal';
 import {CalendarDate, parseZonedDateTime} from '@internationalized/date';
 import {DatePicker, DateRangePicker} from '../';
 import {Provider} from '@react-spectrum/provider';
 import React from 'react';
 import {theme} from '@react-spectrum/theme-default';
+import userEvent from '@testing-library/user-event';
 
 function pointerEvent(type, opts) {
   let evt = new Event(type, {bubbles: true, cancelable: true});
@@ -41,7 +42,7 @@ function render(el) {
 
 describe('DatePickerBase', function () {
   beforeAll(() => {
-    jest.spyOn(window.screen, 'width', 'get').mockImplementation(() => 1024);
+    simulateDesktop();
   });
 
   afterAll(() => {
@@ -72,7 +73,7 @@ describe('DatePickerBase', function () {
 
       let button = getAllByRole('button')[0];
       expect(button).toBeVisible();
-      expect(button).not.toHaveAttribute('tabindex');
+      expect(button).toHaveAttribute('tabindex', '0');
     });
 
     it.each`
@@ -167,11 +168,12 @@ describe('DatePickerBase', function () {
       Name                   | Component
       ${'DatePicker'}        | ${DatePicker}
       ${'DateRangePicker'}   | ${DateRangePicker}
-    `('$Name should focus placeholderValue in calendar', ({Component}) => {
+    `('$Name should focus placeholderValue in calendar', async ({Component}) => {
+      let user = userEvent.setup({delay: null, pointerMap});
       let {getByRole} = render(<Component label="Date" placeholderValue={new CalendarDate(2019, 6, 5)} />);
 
       let button = getByRole('button');
-      triggerPress(button);
+      await user.click(button);
 
       let grid = getByRole('grid');
       expect(grid).toHaveAttribute('aria-label', 'June 2019');
@@ -182,11 +184,12 @@ describe('DatePickerBase', function () {
       Name                   | Component          | props
       ${'DatePicker'}        | ${DatePicker}      | ${{defaultValue: new CalendarDate(2019, 7, 5)}}
       ${'DateRangePicker'}   | ${DateRangePicker} | ${{defaultValue: {start: new CalendarDate(2019, 7, 5), end: new CalendarDate(2019, 7, 10)}}}
-    `('$Name should focus selected date over placeholderValue', ({Component, props}) => {
+    `('$Name should focus selected date over placeholderValue', async ({Component, props}) => {
+      let user = userEvent.setup({delay: null, pointerMap});
       let {getByRole} = render(<Component label="Date" {...props} placeholderValue={new CalendarDate(2019, 6, 5)} />);
 
       let button = getByRole('button');
-      triggerPress(button);
+      await user.click(button);
 
       let grid = getByRole('grid');
       expect(grid).toHaveAttribute('aria-label', 'July 2019');
@@ -215,6 +218,23 @@ describe('DatePickerBase', function () {
       let button = getAllByRole('button')[0];
       expect(button).toHaveAttribute('disabled');
     });
+
+    it.each`
+      Name                   | Component          | props
+      ${'DatePicker'}        | ${DatePicker}      | ${{defaultValue: new CalendarDate(2019, 7, 5)}}
+      ${'DateRangePicker'}   | ${DateRangePicker} | ${{defaultValue: {start: new CalendarDate(2019, 7, 5), end: new CalendarDate(2019, 7, 8)}}}
+    `('$Name should support shouldForceLeadingZeros', ({Component, props}) => {
+      let {getAllByRole} = render(<Component label="Date" {...props} shouldForceLeadingZeros />);
+
+      let segments = getAllByRole('spinbutton');
+      for (let segment of segments) {
+        if (segment.getAttribute('data-testid') !== 'year') {
+          // ignore placeholder text.
+          let textContent = [...segment.childNodes].map(el => el.nodeType === 3 ? el.textContent : '').join('');
+          expect(textContent.startsWith('0')).toBeTruthy();
+        }
+      }
+    });
   });
 
   describe('calendar popover', function () {
@@ -222,7 +242,8 @@ describe('DatePickerBase', function () {
       Name                   | Component
       ${'DatePicker'}        | ${DatePicker}
       ${'DateRangePicker'}   | ${DateRangePicker}
-    `('$Name should open a calendar popover when clicking the button', ({Component}) => {
+    `('$Name should open a calendar popover when clicking the button', async ({Component}) => {
+      let user = userEvent.setup({delay: null, pointerMap});
       let {getAllByRole} = render(
         <Provider theme={theme}>
           <Component label="Date" />
@@ -245,7 +266,7 @@ describe('DatePickerBase', function () {
       expect(button).toHaveAttribute('aria-expanded', 'false');
       expect(button).not.toHaveAttribute('aria-controls');
 
-      triggerPress(button);
+      await user.click(button);
 
       let dialog = getAllByRole('dialog')[0];
       expect(dialog).toBeVisible();
@@ -356,7 +377,8 @@ describe('DatePickerBase', function () {
       Name                   | Component          | props
       ${'DatePicker'}        | ${DatePicker}      | ${{defaultValue: new CalendarDate(2021, 10, 3)}}
       ${'DateRangePicker'}   | ${DateRangePicker} | ${{defaultValue: {start: new CalendarDate(2021, 10, 3), end: new CalendarDate(2021, 10, 4)}}}
-    `('$Name should pass validationState and errorMessage to calendar', ({Component, props}) => {
+    `('$Name should pass validationState and errorMessage to calendar', async ({Component, props}) => {
+      let user = userEvent.setup({delay: null, pointerMap});
       let {getAllByRole} = render(
         <Provider theme={theme}>
           <Component {...props} label="Date" errorMessage="Selected dates cannot include weekends." validationState="invalid" />
@@ -368,7 +390,7 @@ describe('DatePickerBase', function () {
       expect(button).toHaveAttribute('aria-expanded', 'false');
       expect(button).not.toHaveAttribute('aria-controls');
 
-      triggerPress(button);
+      await user.click(button);
 
       let dialog = getAllByRole('dialog')[0];
       let grid = within(dialog).getByRole('grid');
@@ -405,36 +427,6 @@ describe('DatePickerBase', function () {
         fireEvent.keyDown(document.activeElement, {key: 'ArrowLeft'});
       }
     });
-
-    it.each`
-      Name                   | Component
-      ${'DatePicker'}        | ${DatePicker}
-      ${'DateRangePicker'}   | ${DateRangePicker}
-    `('$Name should support arrow keys to move between segments in an RTL locale', ({Component}) => {
-      let {getAllByRole} = render(
-        <Provider theme={theme} locale="ar-EG">
-          <Component label="Date" value={new CalendarDate(2019, 2, 3)} />
-        </Provider>
-      );
-
-      let segments = getAllByRole('spinbutton');
-      let button = getAllByRole('button')[0];
-      act(() => {segments[0].focus();});
-
-      for (let i = 0; i < segments.length; i++) {
-        expect(segments[i]).toHaveFocus();
-        fireEvent.keyDown(document.activeElement, {key: 'ArrowLeft'});
-      }
-
-      expect(button).toHaveFocus();
-      fireEvent.keyDown(document.activeElement, {key: 'ArrowRight'});
-
-      for (let i = segments.length - 1; i >= 0; i--) {
-        expect(segments[i]).toHaveFocus();
-        fireEvent.keyDown(document.activeElement, {key: 'ArrowRight'});
-      }
-    });
-
     it.each`
       Name                   | Component
       ${'DatePicker'}        | ${DatePicker}
@@ -469,6 +461,130 @@ describe('DatePickerBase', function () {
 
       let segments = getAllByRole('spinbutton');
       expect(segments[0]).toHaveFocus();
+    });
+
+    describe('RTL focus management', function () { 
+      beforeEach(() => {
+        jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+          let x = 0;
+          let el = this;
+  
+          if (el.getAttribute('role') === 'spinbutton') {
+            let dataType = el.getAttribute('data-testid');
+            if (el.parentElement.getAttribute('data-testid') === 'end-date') {
+              if (dataType === 'day') {
+                x = 60;
+              } else if (dataType === 'month') {
+                x = 50;
+              } else if (dataType === 'year') {
+                x = 40;
+              } else if (dataType === 'hour') {
+                x = 20;
+              } else if (dataType === 'minute') {
+                x = 30;
+              } else if (dataType === 'dayPeriod') {
+                x = 10;
+              }
+            } else {
+              if (dataType === 'day') {
+                x = 120;
+              } else if (dataType === 'month') {
+                x = 110;
+              } else if (dataType === 'year') {
+                x = 100;
+              } else if (dataType === 'hour') {
+                x = 80;
+              } else if (dataType === 'minute') {
+                x = 90;
+              } else if (dataType === 'dayPeriod') {
+                x = 70;
+              }
+            }
+          }
+    
+          if (el.getAttribute('role') === 'button') {
+            x = 0;
+          }
+    
+          return {
+            left: x,
+            right: x + 10,
+            top: 10,
+            bottom: 0,
+            x: x,
+            y: 10,
+            width: 10,
+            height: 10
+          };
+        });
+  
+        jest.useFakeTimers();
+      });
+
+      afterEach(() => {
+        act(() => jest.runAllTimers());
+      });
+
+      it('DatePicker should support arrow keys to move between segments in an RTL locale', () => {
+        let {getAllByRole} = render(
+          <Provider theme={theme} locale="ar-EG">
+            <DatePicker label="Date" granularity="minute" />
+          </Provider>
+        );
+
+        let segments = getAllByRole('spinbutton');
+        let button = getAllByRole('button')[0];
+        act(() => {segments[0].focus();});
+
+        // Segment order corresponds to the following: [day, month, year, minute, hour, dayPeriod]
+        // In arabic, the absolute position of the segments in a DateField is: DayPeriod Hour:Minute Year/Month/Day
+        let segmentOrder = [0, 1, 2, 4, 3, 5];
+
+        for (let i = 0 ; i < segments.length; i++) {
+          let index = segmentOrder[i];
+          expect(segments[index]).toHaveFocus();
+          fireEvent.keyDown(document.activeElement, {key: 'ArrowLeft'});
+        }
+
+        expect(button).toHaveFocus();
+        fireEvent.keyDown(document.activeElement, {key: 'ArrowRight'});
+
+        for (let i = segments.length - 1; i >= 0; i--) {
+          let index = segmentOrder[i];
+          expect(segments[index]).toHaveFocus();
+          fireEvent.keyDown(document.activeElement, {key: 'ArrowRight'});
+        }
+      });
+
+      it('DateRangePicker should support arrow keys to move between segments in an RTL locale', () => {
+        let {getAllByRole} = render(
+          <Provider theme={theme} locale="ar-EG">
+            <DateRangePicker label="Date" granularity="minute" />
+          </Provider>
+        );
+
+        let segments = getAllByRole('spinbutton');
+        let button = getAllByRole('button')[0];
+        act(() => {segments[0].focus();});
+
+        // In arabic, the absolute position of the segments in a DateField is: DayPeriod Hour:Minute Year/Month/Day
+        let segmentOrder = [0, 1, 2, 4, 3, 5, 6, 7, 8, 10, 9, 11];
+
+        for (let i = 0 ; i < segments.length; i++) {
+          let index = segmentOrder[i];
+          expect(segments[index]).toHaveFocus();
+          fireEvent.keyDown(document.activeElement, {key: 'ArrowLeft'});
+        }
+
+        expect(button).toHaveFocus();
+        fireEvent.keyDown(document.activeElement, {key: 'ArrowRight'});
+
+        for (let i = segments.length - 1; i >= 0; i--) {
+          let index = segmentOrder[i];
+          expect(segments[index]).toHaveFocus();
+          fireEvent.keyDown(document.activeElement, {key: 'ArrowRight'});
+        }
+      });
     });
   });
 

@@ -12,17 +12,18 @@
 
 import {AriaColorSliderProps} from '@react-types/color';
 import {ColorSliderState} from '@react-stately/color';
-import {DOMAttributes} from '@react-types/shared';
-import {InputHTMLAttributes, RefObject} from 'react';
+import {DOMAttributes, RefObject} from '@react-types/shared';
+import {InputHTMLAttributes} from 'react';
 import {mergeProps} from '@react-aria/utils';
 import {useLocale} from '@react-aria/i18n';
 import {useSlider, useSliderThumb} from '@react-aria/slider';
+import {useVisuallyHidden} from '@react-aria/visually-hidden';
 
 export interface AriaColorSliderOptions extends AriaColorSliderProps {
   /** A ref for the track element. */
-  trackRef: RefObject<Element>,
+  trackRef: RefObject<Element | null>,
   /** A ref for the input element. */
-  inputRef: RefObject<HTMLInputElement>
+  inputRef: RefObject<HTMLInputElement | null>
 }
 
 export interface ColorSliderAria {
@@ -43,7 +44,7 @@ export interface ColorSliderAria {
  * Color sliders allow users to adjust an individual channel of a color value.
  */
 export function useColorSlider(props: AriaColorSliderOptions, state: ColorSliderState): ColorSliderAria {
-  let {trackRef, inputRef, orientation, channel, 'aria-label': ariaLabel} = props;
+  let {trackRef, inputRef, orientation, channel, 'aria-label': ariaLabel, name} = props;
 
   let {locale, direction} = useLocale();
 
@@ -58,12 +59,13 @@ export function useColorSlider(props: AriaColorSliderOptions, state: ColorSlider
     index: 0,
     orientation,
     isDisabled: props.isDisabled,
+    name,
     trackRef,
     inputRef
   }, state);
 
+  let value = state.getDisplayColor();
   let generateBackground = () => {
-    let value = state.getDisplayColor();
     let to: string;
     if (orientation === 'vertical') {
       to = 'top';
@@ -73,8 +75,10 @@ export function useColorSlider(props: AriaColorSliderOptions, state: ColorSlider
       to = 'left';
     }
     switch (channel) {
-      case 'hue':
-        return `linear-gradient(to ${to}, rgb(255, 0, 0) 0%, rgb(255, 255, 0) 17%, rgb(0, 255, 0) 33%, rgb(0, 255, 255) 50%, rgb(0, 0, 255) 67%, rgb(255, 0, 255) 83%, rgb(255, 0, 0) 100%)`;
+      case 'hue': {
+        let stops = [0, 60, 120, 180, 240, 300, 360].map(hue => value.withChannelValue('hue', hue).toString('css')).join(', ');
+        return `linear-gradient(to ${to}, ${stops})`;
+      }
       case 'lightness': {
         // We have to add an extra color stop in the middle so that the hue shows up at all.
         // Otherwise it will always just be black to white.
@@ -102,6 +106,21 @@ export function useColorSlider(props: AriaColorSliderOptions, state: ColorSlider
 
   let forcedColorAdjustNoneStyle = {forcedColorAdjust: 'none'};
 
+  if (channel === 'hue') {
+    inputProps['aria-valuetext'] += `, ${value.getHueName(locale)}`;
+  } else if (channel !== 'alpha') {
+    inputProps['aria-valuetext'] += `, ${value.getColorName(locale)}`;
+  }
+
+  let {visuallyHiddenProps} = useVisuallyHidden({
+    style: {
+      opacity: '0.0001',
+      width: '100%',
+      height: '100%',
+      pointerEvents: 'none'
+    }
+  });
+
   return {
     trackProps: {
       ...mergeProps(groupProps, trackProps),
@@ -111,7 +130,13 @@ export function useColorSlider(props: AriaColorSliderOptions, state: ColorSlider
         background: generateBackground()
       }
     },
-    inputProps,
+    inputProps: {
+      ...inputProps,
+      style: {
+        ...inputProps.style,
+        ...visuallyHiddenProps.style
+      }
+    },
     thumbProps: {
       ...thumbProps,
       style: {
